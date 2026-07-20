@@ -32,7 +32,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 @Slf4j
 @PluginDescriptor(
 	name = "RS-Flipper",
-	description = "Flipping-Assistent für die Grand Exchange",
+	description = "Live GE flipping suggestions, real-time dump alerts and gp-exact profit tracking",
 	tags = {"flipping", "grand exchange", "ge", "merching", "money making"}
 )
 public class RSFlipperPlugin extends Plugin
