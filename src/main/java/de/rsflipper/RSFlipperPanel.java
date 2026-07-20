@@ -242,55 +242,12 @@ public class RSFlipperPanel extends PluginPanel
 		content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 		content.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-		// Logo komplett als EINE gezeichnete Einheit (Mark + Schriftzug, Ramon 2026-07-19)
-		// — Baseline sauber ausgerichtet, scharf auf jeder Skalierung.
-		javax.swing.JComponent title = new javax.swing.JComponent()
-		{
-			{
-				setFont(new JLabel().getFont().deriveFont(Font.BOLD, 17f));
-			}
-
-			@Override
-			public java.awt.Dimension getPreferredSize()
-			{
-				java.awt.FontMetrics fm = getFontMetrics(getFont());
-				return new java.awt.Dimension(26 + 9 + fm.stringWidth("RS-Flipper"), 30);
-			}
-
-			@Override
-			public java.awt.Dimension getMaximumSize()
-			{
-				return getPreferredSize();
-			}
-
-			@Override
-			protected void paintComponent(java.awt.Graphics g)
-			{
-				java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
-				g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-				g2.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING, java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-				int cy = (getHeight() - 26) / 2;
-				g2.setColor(new Color(14, 26, 21));
-				g2.fillOval(1, cy + 1, 24, 24);
-				g2.setColor(new Color(16, 185, 129));
-				g2.setStroke(new java.awt.BasicStroke(2f));
-				g2.drawOval(1, cy + 1, 24, 24);
-				g2.setColor(new Color(52, 211, 153));
-				g2.setStroke(new java.awt.BasicStroke(2.4f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
-				g2.drawLine(13, cy + 19, 13, cy + 8);
-				g2.drawLine(13, cy + 8, 9, cy + 12);
-				g2.drawLine(13, cy + 8, 17, cy + 12);
-				g2.setFont(getFont());
-				java.awt.FontMetrics fm = g2.getFontMetrics();
-				int tx = 26 + 9;
-				int ty = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
-				g2.setColor(new Color(52, 211, 153));
-				g2.drawString("RS", tx, ty);
-				g2.setColor(new Color(230, 237, 243));
-				g2.drawString("-Flipper", tx + fm.stringWidth("RS"), ty);
-				g2.dispose();
-			}
-		};
+		// Neues Logo (Claude-Design-Projekt, Ramon 2026-07-21): plugin-header.png
+		// als Ressource — ersetzt das frueher gezeichnete Mark+Schriftzug-Logo.
+		java.awt.image.BufferedImage headerImg =
+			net.runelite.client.util.ImageUtil.loadImageResource(RSFlipperPanel.class, "header.png");
+		JLabel title = new JLabel(new javax.swing.ImageIcon(
+			headerImg.getScaledInstance(-1, 30, java.awt.Image.SCALE_SMOOTH)));
 		title.setAlignmentX(CENTER_ALIGNMENT);
 
 		statusLabel.setAlignmentX(CENTER_ALIGNMENT);

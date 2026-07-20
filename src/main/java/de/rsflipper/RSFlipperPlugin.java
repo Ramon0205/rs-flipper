@@ -628,27 +628,7 @@ public class RSFlipperPlugin extends Plugin
 	 *  zur Laufzeit gezeichnet statt als Ressource gebundelt. */
 	private static BufferedImage createIcon()
 	{
-		BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-		Graphics2D g = img.createGraphics();
-		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-		// Kreis: Fuellung #0e1a15, Ring #10b981 (Skalierung des 64er-viewBox auf 16px).
-		g.setColor(new Color(0x0e1a15));
-		g.fillOval(1, 1, 14, 14);
-		g.setColor(new Color(0x10b981));
-		g.setStroke(new java.awt.BasicStroke(1.6f));
-		g.drawOval(1, 1, 13, 13);
-		// Aufwaerts-Pfeil #34d399 mit runden Kappen.
-		g.setColor(new Color(0x34d399));
-		g.setStroke(new java.awt.BasicStroke(1.7f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
-		java.awt.geom.Path2D.Float arrow = new java.awt.geom.Path2D.Float();
-		arrow.moveTo(8, 11.3);
-		arrow.lineTo(8, 5.3);
-		arrow.moveTo(5.6, 7.7);
-		arrow.lineTo(8, 5.3);
-		arrow.lineTo(10.4, 7.7);
-		g.draw(arrow);
-		g.dispose();
-		return img;
+		// Neues Logo (Ramon 2026-07-21): Favicon-Ressource statt Laufzeit-Zeichnung.
+		return net.runelite.client.util.ImageUtil.loadImageResource(RSFlipperPlugin.class, "icon16.png");
 	}
 }
