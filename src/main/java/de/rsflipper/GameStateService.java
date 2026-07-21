@@ -372,20 +372,34 @@ public class GameStateService
 		public final boolean buySide;  // Kauforder → gelbe Plakette (Ramon 2026-07-18)
 		public final long ageSecAtSync;
 		public final double etaMin;    // -1 = unbekannt
+		// Break-even-Geduld (Ramon 2026-07-21): Restzeit der Halte-Regel in Sekunden,
+		// -1 = Regel greift nicht. Sichtbar am Slot, sonst wirkt er haengengeblieben.
+		public final long holdRemainSecAtSync;
 		public final long receivedAt;  // fürs Live-Hochzählen des Alters
 
-		public SlotHud(Long profit, boolean buySide, long ageSecAtSync, double etaMin)
+		public SlotHud(Long profit, boolean buySide, long ageSecAtSync, double etaMin, long holdRemainSecAtSync)
 		{
 			this.profit = profit;
 			this.buySide = buySide;
 			this.ageSecAtSync = ageSecAtSync;
 			this.etaMin = etaMin;
+			this.holdRemainSecAtSync = holdRemainSecAtSync;
 			this.receivedAt = System.currentTimeMillis();
 		}
 
 		public long liveAgeSec()
 		{
 			return ageSecAtSync + (System.currentTimeMillis() - receivedAt) / 1000;
+		}
+
+		/** Live herunterzaehlende Geduld-Restzeit; 0 = abgelaufen/inaktiv. */
+		public long liveHoldRemainSec()
+		{
+			if (holdRemainSecAtSync < 0)
+			{
+				return 0;
+			}
+			return Math.max(0, holdRemainSecAtSync - (System.currentTimeMillis() - receivedAt) / 1000);
 		}
 	}
 

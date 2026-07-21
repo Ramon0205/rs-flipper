@@ -41,6 +41,8 @@ public class RSFlipperOverlay extends Overlay
 	private static final Color ORANGE = new Color(255, 152, 31);
 	private static final Color RED = new Color(231, 76, 60);
 	private static final Color TEAL = new Color(26, 188, 156);
+	/** Break-even-Geduld-Plakette (Ramon 2026-07-21): bewusst NICHT Orange (= Modify). */
+	private static final Color AMBER = new Color(255, 196, 60);
 
 	private final Client client;
 	private final GameStateService gameState;
@@ -435,7 +437,23 @@ public class RSFlipperOverlay extends Overlay
 			g.drawString(age, b.x + 6, lineY + 1);
 			g.setColor(new Color(200, 200, 200));
 			g.drawString(age, b.x + 5, lineY);
-			if (info.etaMin >= 0)
+			// Break-even-Geduld (Ramon 2026-07-21): Der Slot HAELT bewusst — ohne die
+			// Plakette wirkt er haengengeblieben. "hold 32m" = Regel aktiv, Restzeit
+			// zaehlt live herunter; die ETA entfaellt solange (sie gilt fuer den
+			// Markt-Anker, nicht fuer den gehaltenen Break-even-Preis).
+			long holdSec = info.liveHoldRemainSec();
+			if (holdSec > 0)
+			{
+				String hold = "hold " + formatDuration(holdSec);
+				int htw = g.getFontMetrics().stringWidth(hold);
+				int hx = b.x + b.width - htw - 5;
+				java.awt.FontMetrics hfm = g.getFontMetrics();
+				g.setColor(new Color(0, 0, 0, 185));
+				g.fillRoundRect(hx - 4, lineY - hfm.getAscent(), htw + 8, hfm.getAscent() + hfm.getDescent(), 6, 6);
+				g.setColor(AMBER);
+				g.drawString(hold, hx, lineY);
+			}
+			else if (info.etaMin >= 0)
 			{
 				String eta = "~" + formatDuration(Math.round(info.etaMin * 60));
 				int etw = g.getFontMetrics().stringWidth(eta);

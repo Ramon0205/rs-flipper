@@ -551,7 +551,9 @@ public class RSFlipperPlugin extends Plugin
 						boolean buySide = o.has("side") && "buy".equals(o.get("side").getAsString());
 						long ageSec = o.has("ageSec") && !o.get("ageSec").isJsonNull() ? o.get("ageSec").getAsLong() : 0;
 						double etaMin = o.has("etaMin") && !o.get("etaMin").isJsonNull() ? o.get("etaMin").getAsDouble() : -1;
-						slotHud.put(o.get("boxId").getAsInt(), new GameStateService.SlotHud(profit, buySide, ageSec, etaMin));
+						long holdSec = o.has("patienceRemainSec") && !o.get("patienceRemainSec").isJsonNull()
+							? o.get("patienceRemainSec").getAsLong() : -1;
+						slotHud.put(o.get("boxId").getAsInt(), new GameStateService.SlotHud(profit, buySide, ageSec, etaMin, holdSec));
 					});
 				}
 				gameState.setSlotHud(slotHud);
