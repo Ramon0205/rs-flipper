@@ -41,6 +41,8 @@ public class RSFlipperOverlay extends Overlay
 	private static final Color ORANGE = new Color(255, 152, 31);
 	private static final Color RED = new Color(231, 76, 60);
 	private static final Color TEAL = new Color(26, 188, 156);
+	/** Dump-Alerts PINK statt Rot (Ramon 2026-07-22): Rot bleibt exklusiv fuer Abort. */
+	private static final Color DUMP_PINK = new Color(255, 64, 210);
 	/** Break-even-Geduld-Plakette (Ramon 2026-07-21): bewusst NICHT Orange (= Modify). */
 	private static final Color AMBER = new Color(255, 196, 60);
 
@@ -118,13 +120,21 @@ public class RSFlipperOverlay extends Overlay
 		if (!applyRowDrawn && quoteSetupItem > 0 && quoteSetupItem == prefill.getQuoteItemId()
 			&& prefill.getQuoteBuy() > 0 && prefill.getQuoteSell() > 0)
 		{
-			String quote = String.format("Optimal:  buy %,d  |  sell %,d",
-				prefill.getQuoteBuy(), prefill.getQuoteSell());
+			// Netto-Marge dazu (Julian-Wunsch 2026-07-22): sell − GE-Steuer − buy,
+			// gruen/rot — der manuelle Trader sieht sofort, ob sich der Flip lohnt.
+			long qb = prefill.getQuoteBuy();
+			long qs = prefill.getQuoteSell();
+			long margin = qs - geTaxPerItem(qs) - qb;
+			String quote = String.format("Optimal:  buy %,d  |  sell %,d  |  ", qb, qs);
+			String marginTxt = String.format("%s%,d", margin >= 0 ? "+" : "-", Math.abs(margin));
+			java.awt.FontMetrics qfm = g.getFontMetrics();
 			g.setColor(new Color(0, 0, 0, 170));
-			int qw = g.getFontMetrics().stringWidth(quote) + 16;
+			int qw = qfm.stringWidth(quote) + qfm.stringWidth(marginTxt) + 16;
 			g.fillRoundRect(8, nextY, qw, 22, 6, 6);
 			g.setColor(TEAL);
 			g.drawString(quote, 16, nextY + 15);
+			g.setColor(margin >= 0 ? GREEN : RED);
+			g.drawString(marginTxt, 16 + qfm.stringWidth(quote), nextY + 15);
 		}
 
 		drawSlotHud(g);
@@ -164,15 +174,15 @@ public class RSFlipperOverlay extends Overlay
 				// "All"-Button markieren — ein Klick verkauft alles, kein Zahlentippen.
 				boolean sellAll = "sell".equals(s.getType())
 					&& inventoryCount(s.getItemId()) == s.getQuantity();
-				highlightChildMaybePulse(g, setup, sellAll ? SETUP_QTY_ALL_BUTTON : SETUP_QTY_BUTTON, dump ? RED : ORANGE, dump);
+				highlightChildMaybePulse(g, setup, sellAll ? SETUP_QTY_ALL_BUTTON : SETUP_QTY_BUTTON, dump ? DUMP_PINK : ORANGE, dump);
 			}
 			if (!priceOk)
 			{
-				highlightChildMaybePulse(g, setup, SETUP_PRICE_BUTTON, dump ? RED : ORANGE, dump);
+				highlightChildMaybePulse(g, setup, SETUP_PRICE_BUTTON, dump ? DUMP_PINK : ORANGE, dump);
 			}
 			if (qtyOk && priceOk)
 			{
-				highlightChildMaybePulse(g, setup, SETUP_CONFIRM_BUTTON, dump ? RED : GREEN, dump);
+				highlightChildMaybePulse(g, setup, SETUP_CONFIRM_BUTTON, dump ? DUMP_PINK : GREEN, dump);
 			}
 			return null;
 		}
@@ -207,7 +217,7 @@ public class RSFlipperOverlay extends Overlay
 				color = ORANGE;
 				break;
 			case "buy":
-				color = dump ? RED : TEAL;
+				color = dump ? DUMP_PINK : TEAL;
 				if (boxId < 0)
 				{
 					boxId = firstEmptySlot();
@@ -225,7 +235,7 @@ public class RSFlipperOverlay extends Overlay
 		{
 			if (dump)
 			{
-				drawBoxPulse(g, slot.getBounds(), RED);
+				drawBoxPulse(g, slot.getBounds(), DUMP_PINK);
 			}
 			else
 			{
@@ -466,6 +476,17 @@ public class RSFlipperOverlay extends Overlay
 				g.drawString(eta, b.x + b.width - etw - 5, lineY);
 			}
 		}
+	}
+
+	/** GE-Steuer je Stueck (SPEC §1.4): 2 % auf den Verkaufspreis, abgerundet,
+	 *  Cap 5M gp, steuerfrei unter 50 gp — identisch zur Server-Formel. */
+	private static long geTaxPerItem(long sellPrice)
+	{
+		if (sellPrice < 50)
+		{
+			return 0;
+		}
+		return Math.min((long) Math.floor(sellPrice * 0.02), 5_000_000L);
 	}
 
 	/** Hochzählender Timer im mm:ss-Format (Ramon 2026-07-18). */

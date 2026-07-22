@@ -27,8 +27,8 @@ public class GeSearchSuggestion
 	private static final int BRAND_GREEN = 0x10b981;  // Marken-Emerald (Website/Logo)
 	private static final int BG_DARK = 0x0e1a15;      // dunkler Emerald-Grund
 	private static final int HINT_GRAY = 0x9aa5a0;
-	private static final int RED = 0xe74c3c;          // Dump-Alert
-	private static final int RED_BG = 0x7a2620;       // roter Zeilen-Grund im Blink-Hoch
+	private static final int PINK = 0xff40d2;         // Dump-Alert (pink statt rot - rot = Abort, Ramon 2026-07-22)
+	private static final int PINK_BG = 0x6e1f5c;      // pinker Zeilen-Grund im Blink-Hoch
 
 	private final Client client;
 	private final GameStateService gameState;
@@ -152,9 +152,9 @@ public class GeSearchSuggestion
 		// M12a Dump-Alert: rote Zeile statt Emerald-Look; die Farb-INTENSITAET pulsiert
 		// per Frame ueber animate() (Ramon 2026-07-19) — genau wie der Slot im Overlay.
 		boolean dump = s.isDumpAlert();
-		final int bgFill = dump ? RED_BG : BG_DARK;
-		int outlineColor = dump ? RED : BRAND_GREEN;
-		int labelColor = dump ? RED : BRAND_GREEN;
+		final int bgFill = dump ? PINK_BG : BG_DARK;
+		int outlineColor = dump ? PINK : BRAND_GREEN;
+		int labelColor = dump ? PINK : BRAND_GREEN;
 
 		rect.setOriginalX(0);
 		rect.setOriginalY(0);
@@ -168,7 +168,7 @@ public class GeSearchSuggestion
 		rect.setOnOpListener(SELECT_SCRIPT, s.getItemId(), SELECT_OP_ARG);
 		rect.setOnKeyListener(SELECT_SCRIPT, s.getItemId(), KEY_LISTENER_ARG);
 		rect.setOnMouseOverListener((net.runelite.api.widgets.JavaScriptCallback) ev -> {
-			rect.setTextColor(dump ? 0x9a2c24 : 0x123b2c);
+			rect.setTextColor(dump ? 0x8a2a78 : 0x123b2c);
 			rect.setOpacity(70);
 		});
 		rect.setOnMouseLeaveListener((net.runelite.api.widgets.JavaScriptCallback) ev -> {
