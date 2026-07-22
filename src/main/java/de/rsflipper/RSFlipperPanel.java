@@ -915,6 +915,16 @@ public class RSFlipperPanel extends PluginPanel
 			case java.awt.event.KeyEvent.VK_BACK_SPACE: name = "BACKSPACE"; break;
 			case java.awt.event.KeyEvent.VK_ESCAPE: name = "ESC"; break;
 			default:
+				// Zeichen-Anzeige statt getKeyText (Ramon 2026-07-22): getKeyText mappt
+				// den Code uebers AKTUELLE Layout und zeigte VK_MINUS als "/". Die
+				// VK-Codes druckbarer ASCII-Zeichen SIND deren Zeichencodes — direkt
+				// als Zeichen rendern, layout-unabhaengig und konsistent zur Erfassung.
+				int kc = kb.getKeyCode();
+				if (kc >= 33 && kc <= 126)
+				{
+					name = String.valueOf((char) kc);
+					break;
+				}
 				name = java.awt.event.KeyEvent.getKeyText(kb.getKeyCode());
 				boolean ascii = !name.isEmpty();
 				for (int i = 0; i < name.length(); i++)
