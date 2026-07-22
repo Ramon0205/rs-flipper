@@ -260,6 +260,14 @@ public class RSFlipperPanel extends PluginPanel
 		super(false);
 		this.config = config;
 		this.configManager = configManager;
+		// Altlast-Migration (Ramon 2026-07-22): fruehere Erfassungen speicherten '-' als
+		// '/' (macOS mappt Sonderzeichen-KeyCodes uebers US-Layout). Gespeicherte
+		// Slash-Binds ohne Modifier zuruecksetzen -> der neue Standard '-' greift.
+		net.runelite.client.config.Keybind legacy = config.chartHotkey();
+		if (legacy != null && legacy.getKeyCode() == java.awt.event.KeyEvent.VK_SLASH && legacy.getModifiers() == 0)
+		{
+			configManager.unsetConfiguration(RSFlipperConfig.GROUP, "chartHotkey");
+		}
 		setLayout(new BorderLayout());
 		setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 		setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -736,6 +744,35 @@ public class RSFlipperPanel extends PluginPanel
 		});
 		btn.addKeyListener(new java.awt.event.KeyAdapter()
 		{
+			// Druckbare Tasten werden in keyTyped erfasst — NUR dort traegt das Event
+			// garantiert das echte Zeichen (macOS-Falle: keyPressed lieferte fuer '-'
+			// den US-Layout-Code '/'; Ramon 2026-07-22). keyPressed bleibt fuer ESC
+			// und nicht-druckbare Tasten (ENTER, F-Tasten, Kombis mit Strg/Alt).
+			@Override
+			public void keyTyped(java.awt.event.KeyEvent e)
+			{
+				if (!"Press key...".equals(btn.getText()))
+				{
+					return;
+				}
+				char ch = e.getKeyChar();
+				if (ch == java.awt.event.KeyEvent.CHAR_UNDEFINED || Character.isISOControl(ch))
+				{
+					return;
+				}
+				int fromChar = java.awt.event.KeyEvent.getExtendedKeyCodeForChar(Character.toUpperCase(ch));
+				if (fromChar == java.awt.event.KeyEvent.VK_UNDEFINED)
+				{
+					return;
+				}
+				// Shift steckt bereits im Zeichen — nicht doppelt als Modifier speichern.
+				int mods = e.getModifiersEx() & ~java.awt.event.InputEvent.SHIFT_DOWN_MASK;
+				net.runelite.client.config.Keybind kb = new net.runelite.client.config.Keybind(fromChar, mods);
+				configManager.setConfiguration(RSFlipperConfig.GROUP, configKey, kb);
+				btn.setText(keybindText(kb));
+				e.consume();
+			}
+
 			@Override
 			public void keyPressed(java.awt.event.KeyEvent e)
 			{
@@ -743,27 +780,27 @@ public class RSFlipperPanel extends PluginPanel
 				{
 					return;
 				}
-				if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE)
+				int kc = e.getKeyCode();
+				if (kc == java.awt.event.KeyEvent.VK_ESCAPE)
 				{
 					btn.setText(keybindText(currentKeybind(configManager, configKey)));
+					e.consume();
 					return;
 				}
-				// macOS-Falle (Ramon 2026-07-22): Fuer Sonderzeichen liefert Swing den
-				// US-Layout-KeyCode ('-' wurde als '/' erfasst). Bei druckbaren Zeichen
-				// den Code deshalb aus dem ZEICHEN ableiten — layout-unabhaengig und
-				// identisch zum In-Game-Fallback (getExtendedKeyCodeForChar).
-				int code = e.getKeyCode();
+				// Reine Modifier-Druecke beenden die Erfassung nicht.
+				if (kc == java.awt.event.KeyEvent.VK_SHIFT || kc == java.awt.event.KeyEvent.VK_CONTROL
+					|| kc == java.awt.event.KeyEvent.VK_ALT || kc == java.awt.event.KeyEvent.VK_META)
+				{
+					return;
+				}
+				// Druckbare Zeichen erledigt keyTyped — hier nur nicht-druckbare Tasten.
 				char ch = e.getKeyChar();
 				if (ch != java.awt.event.KeyEvent.CHAR_UNDEFINED && !Character.isISOControl(ch))
 				{
-					int fromChar = java.awt.event.KeyEvent.getExtendedKeyCodeForChar(Character.toUpperCase(ch));
-					if (fromChar != java.awt.event.KeyEvent.VK_UNDEFINED)
-					{
-						code = fromChar;
-					}
+					return;
 				}
 				net.runelite.client.config.Keybind kb =
-					new net.runelite.client.config.Keybind(code, e.getModifiersEx());
+					new net.runelite.client.config.Keybind(kc, e.getModifiersEx());
 				configManager.setConfiguration(RSFlipperConfig.GROUP, configKey, kb);
 				btn.setText(keybindText(kb));
 				e.consume();
