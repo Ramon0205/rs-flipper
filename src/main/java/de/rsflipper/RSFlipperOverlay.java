@@ -36,6 +36,10 @@ public class RSFlipperOverlay extends Overlay
 	private static final int SETUP_CONFIRM_BUTTON = 58;
 	private static final int VARBIT_SETUP_QUANTITY = 4396;
 	private static final int VARBIT_SETUP_PRICE = 4398;
+	/** Einziges zuverlaessiges Setup-Signal (Antler-guard-Fund 2026-07-18): Das
+	 *  Setup-Widget 465/26 gilt AUCH in der Slot-/Offer-Ansicht als sichtbar —
+	 *  nur dieses Varbit (im Setup geoeffneter Slot, 0 = keiner) trennt sauber. */
+	private static final int VARBIT_SETUP_OPEN = 4439;
 
 	private static final Color GREEN = new Color(46, 204, 113);
 	private static final Color ORANGE = new Color(255, 152, 31);
@@ -155,9 +159,14 @@ public class RSFlipperOverlay extends Overlay
 		}
 
 		// Offer-SETUP-Screen: Menge/Preis/Bestätigen gezielt markieren (orange = ändern nötig).
+		// Craw's-bow-Fund (Ramon 2026-07-22): NUR wenn wirklich ein Setup offen ist
+		// (Varbit 4439) — das Widget allein meldet sich auch in der Offer-Ansicht als
+		// sichtbar, und die Setup-Varbits stehen dort auf 0 -> Phantom-Mengen-Highlight
+		// beim Modify-Klick auf den Slot.
 		Widget setup = client.getWidget(GE_GROUP_ID, SETUP_CHILD);
 		int setupItem = client.getVarpValue(VarPlayer.CURRENT_GE_ITEM);
-		if (setup != null && !setup.isHidden() && setupItem == s.getItemId())
+		if (setup != null && !setup.isHidden() && setupItem == s.getItemId()
+			&& client.getVarbitValue(VARBIT_SETUP_OPEN) != 0)
 		{
 			int curQty = client.getVarbitValue(VARBIT_SETUP_QUANTITY);
 			int curPrice = client.getVarbitValue(VARBIT_SETUP_PRICE);
