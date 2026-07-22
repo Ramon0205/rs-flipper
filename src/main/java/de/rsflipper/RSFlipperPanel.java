@@ -736,13 +736,13 @@ public class RSFlipperPanel extends PluginPanel
 		dumpPulseTimer = new javax.swing.Timer(80, e -> {
 			double t = ((System.currentTimeMillis() - start) % 900) / 900.0;
 			float p = (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * t)); // 0..1
-			// Rahmen: dunkles Rot <-> knalliges Rot.
-			Color red = new Color(231, 76, 60);
-			Color dim = new Color(90, 30, 27);
-			Color line = lerp(dim, red, p);
+			// Rahmen: dunkles Pink <-> knalliges Pink (Ramon 2026-07-22, vorher rot).
+			Color pink = new Color(255, 64, 210);
+			Color dim = new Color(92, 26, 76);
+			Color line = lerp(dim, pink, p);
 			// Hintergrund pulsiert dezent mit (dunkel genug, dass der Text lesbar bleibt).
-			Color bgDark = new Color(48, 18, 16);
-			Color bgBright = new Color(96, 32, 28);
+			Color bgDark = new Color(46, 14, 38);
+			Color bgBright = new Color(92, 28, 76);
 			suggestionRow.setBackground(lerp(bgDark, bgBright, p));
 			suggestionRow.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(line, 2, true),
@@ -976,11 +976,12 @@ public class RSFlipperPanel extends PluginPanel
 				headline = "buy".equals(type) ? "Change Buy Order" : "Change Sell Order";
 				bg = new Color(255, 152, 31);
 			}
-			// M12a Dump-Alert: eigene Headline + ROT (Ramon 2026-07-19), Feld pulsiert.
+			// M12a Dump-Alert: eigene Headline + PINK (Ramon 2026-07-22, vorher rot —
+			// rot bleibt exklusiv fuer Abort), Feld pulsiert.
 			if (s.isDumpAlert())
 			{
 				headline = "DUMP ALERT";
-				bg = new Color(231, 76, 60);
+				bg = new Color(255, 64, 210);
 			}
 			boolean colored = !"wait".equals(type);
 			// Sehr dunkle Tönung der Aktions-Farbe als Hintergrund (Ramon 2026-07-18):
@@ -994,7 +995,7 @@ public class RSFlipperPanel extends PluginPanel
 			suggestionRow.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(colored ? bg : ColorScheme.DARK_GRAY_COLOR, 2, true),
 				BorderFactory.createEmptyBorder(3, 6, 5, 6)));
-			// M12a: Dump-Alert-Feld pulsiert ROT (Ramon 2026-07-19).
+			// M12a: Dump-Alert-Feld pulsiert PINK (Ramon 2026-07-22).
 			if (s.isDumpAlert())
 			{
 				startDumpPulse();
@@ -1004,7 +1005,7 @@ public class RSFlipperPanel extends PluginPanel
 				stopDumpPulse();
 			}
 			actionHeadline.setText(headline);
-			// "DUMP ALERT" in Gold — knalliger Kontrast auf dem pulsierenden Rot.
+			// "DUMP ALERT" in Gold — knalliger Kontrast auf dem pulsierenden Pink.
 			actionHeadline.setForeground(s.isDumpAlert() ? new Color(255, 215, 80)
 				: (colored ? bg : ColorScheme.LIGHT_GRAY_COLOR));
 			iconLabel.setIcon(itemIcon);
