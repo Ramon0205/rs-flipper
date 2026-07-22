@@ -220,6 +220,19 @@ public class OfferPrefill implements KeyListener
 			log.debug("Taste bei offener Eingabe: code={} char='{}' fill={} skip={}", e.getKeyCode(), e.getKeyChar(), fillMatch, skipMatch);
 		}
 
+		// Chart-Hotkey (Ramon 2026-07-22): oeffnet die Item-Detailseite des aktuellen
+		// Vorschlags auf rs-flipper.com (Standard Ctrl+G — kein Chat-Konflikt).
+		if (config.chartHotkey().matches(e))
+		{
+			ClientSuggestion cs = gameState.getCurrentSuggestion();
+			if (cs != null && cs.getItemId() > 0)
+			{
+				net.runelite.client.util.LinkBrowser.browse("https://rs-flipper.com/items?item=" + cs.getItemId());
+				e.consume();
+				return;
+			}
+		}
+
 		// Skip (§4.6): nur wenn KEINE Zahleneingabe offen ist — sonst würde '+'
 		// beim Tippen eines Preises Vorschläge überspringen.
 		if (skipMatch && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0)

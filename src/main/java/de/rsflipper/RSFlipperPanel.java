@@ -50,6 +50,7 @@ public class RSFlipperPanel extends PluginPanel
 	};
 	private final JLabel actionHeadline = new JLabel(" ", SwingConstants.CENTER);
 	private final JButton skipButton = new JButton("Skip [+]");
+	private final JButton chartButton = new JButton("Chart");
 	private final JButton blockButton = new JButton("Block");
 	private final JToggleButton pauseToggle = new JToggleButton("Pause");
 	private final JToggleButton sellOnlyToggle = new JToggleButton("Sell only");
@@ -277,10 +278,20 @@ public class RSFlipperPanel extends PluginPanel
 		pauseToggle.addActionListener(e -> onToggleChanged.run());
 		sellOnlyToggle.addActionListener(e -> onToggleChanged.run());
 
-		JPanel actionRow = new JPanel(new GridLayout(1, 2, 6, 0));
+		// Chart-Button (Ramon 2026-07-22): oeffnet die Item-Detailseite mit Preisgraph
+		// auf rs-flipper.com — zur eigenen Bewertung des Vorschlags. Hotkey: Ctrl+G.
+		chartButton.addActionListener(e -> {
+			ClientSuggestion s = current;
+			if (s != null && s.getItemId() > 0)
+			{
+				net.runelite.client.util.LinkBrowser.browse("https://rs-flipper.com/items?item=" + s.getItemId());
+			}
+		});
+		JPanel actionRow = new JPanel(new GridLayout(1, 3, 6, 0));
 		actionRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		actionRow.add(skipButton);
 		actionRow.add(blockButton);
+		actionRow.add(chartButton);
 
 		JPanel toggleRow = new JPanel(new GridLayout(1, 2, 6, 0));
 		toggleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -561,6 +572,7 @@ public class RSFlipperPanel extends PluginPanel
 		settingsTab.add(hotkeyRow("Apply suggestion:", "fillHotkey", config.fillHotkey(), configManager));
 		settingsTab.add(javax.swing.Box.createVerticalStrut(4));
 		settingsTab.add(hotkeyRow("Skip suggestion:", "skipHotkey", config.skipHotkey(), configManager));
+		settingsTab.add(hotkeyRow("Open item chart:", "chartHotkey", config.chartHotkey(), configManager));
 
 		// M12a Dump-Alerts (Ramon 2026-07-19): Opt-in-Schwelle, reservierte Slots, Sound.
 		settingsTab.add(javax.swing.Box.createVerticalStrut(14));
@@ -1100,6 +1112,7 @@ public class RSFlipperPanel extends PluginPanel
 
 			boolean actionable = s.isActionable();
 			skipButton.setEnabled(actionable && s.getItemId() > 0);
+			chartButton.setEnabled(s.getItemId() > 0);
 			blockButton.setEnabled(actionable && s.getItemId() > 0);
 			priceGraph.setSeries(s.getGraphHigh(), s.getGraphLow());
 			priceGraph.setVisible(s.getGraphHigh().length > 0);
