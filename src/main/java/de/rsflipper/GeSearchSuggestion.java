@@ -102,8 +102,10 @@ public class GeSearchSuggestion
 		float p = (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * t)); // 0..1
 		rect.setOpacity((int) (150 - 95 * p));    // 150 (dunkel) -> 55 (kraeftig)
 		outline.setOpacity((int) (140 - 120 * p)); // 140 -> 20
-		rect.revalidate();
-		outline.revalidate();
+		// KEIN revalidate() hier (Julian-Lag-Fund 2026-07-22): revalidate erzwingt eine
+		// Layout-Neuberechnung des Chatbox-Baums — pro Frame x2 brach die Framerate ein,
+		// sobald der Dump-Alert pulsierte. Opacity ist eine reine Render-Eigenschaft und
+		// wird ohne revalidate uebernommen; Layout-Aenderungen macht nur inject().
 	}
 
 	private void inject(Widget results, ClientSuggestion s)
