@@ -114,7 +114,8 @@ public class RSFlipperPanel extends PluginPanel
 					JLabel name = new JLabel(names.getOrDefault(id, "Item " + id));
 					name.setForeground(java.awt.Color.WHITE);
 					name.setFont(name.getFont().deriveFont(12f));
-					JButton remove = new JButton("\u2715");
+					// ASCII-only (RuneLite-Pixelfont rendert kein Unicode - bekannte Falle).
+					JButton remove = new JButton("X");
 					remove.setMargin(new java.awt.Insets(0, 6, 0, 6));
 					remove.setToolTipText("Remove from blocklist - item can be suggested again");
 					remove.addActionListener(ev -> {

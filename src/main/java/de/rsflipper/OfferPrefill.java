@@ -194,6 +194,22 @@ public class OfferPrefill implements KeyListener
 		{
 			return;
 		}
+		// Chart-Hotkey (Ramon 2026-07-22): oeffnet die Item-Detailseite des aktuellen
+		// Vorschlags auf rs-flipper.com. Ganz vorn im Handler + doppelter Match
+		// (Keybind ODER hart Ctrl+G), damit keine spaetere Bedingung ihn schluckt.
+		boolean chartMatch = config.chartHotkey().matches(e)
+			|| (e.isControlDown() && e.getKeyCode() == java.awt.event.KeyEvent.VK_G);
+		if (chartMatch)
+		{
+			ClientSuggestion cs = gameState.getCurrentSuggestion();
+			log.debug("Chart-Hotkey: suggestion={} item={}", cs != null ? cs.getType() : null, cs != null ? cs.getItemId() : -1);
+			if (cs != null && cs.getItemId() > 0)
+			{
+				net.runelite.client.util.LinkBrowser.browse("https://rs-flipper.com/items?item=" + cs.getItemId());
+				e.consume();
+			}
+			return;
+		}
 		// '+' bei offener GE IMMER schlucken — unabhaengig davon, ob ein Skip
 		// ausgeloest wird (sonst landet das Zeichen im Chat-Eingabefeld).
 		if (e.getKeyChar() == '+' && geOpen())
@@ -218,19 +234,6 @@ public class OfferPrefill implements KeyListener
 		if (pendingValue > 0)
 		{
 			log.debug("Taste bei offener Eingabe: code={} char='{}' fill={} skip={}", e.getKeyCode(), e.getKeyChar(), fillMatch, skipMatch);
-		}
-
-		// Chart-Hotkey (Ramon 2026-07-22): oeffnet die Item-Detailseite des aktuellen
-		// Vorschlags auf rs-flipper.com (Standard Ctrl+G — kein Chat-Konflikt).
-		if (config.chartHotkey().matches(e))
-		{
-			ClientSuggestion cs = gameState.getCurrentSuggestion();
-			if (cs != null && cs.getItemId() > 0)
-			{
-				net.runelite.client.util.LinkBrowser.browse("https://rs-flipper.com/items?item=" + cs.getItemId());
-				e.consume();
-				return;
-			}
 		}
 
 		// Skip (§4.6): nur wenn KEINE Zahleneingabe offen ist — sonst würde '+'
