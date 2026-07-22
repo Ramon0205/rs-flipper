@@ -198,7 +198,15 @@ public class OfferPrefill implements KeyListener
 		// die Taste komplett geschluckt (auch ohne Vorschlag, damit nichts in den Chat
 		// rutscht). Bei geschlossener GE tippt die Taste ganz normal (Chat).
 		net.runelite.client.config.Keybind chartKb = config.chartHotkey();
+		// Layout-Fallback (Ramon 2026-07-22, gleiche Lektion wie beim '+'-Skip):
+		// Sonderzeichen-Tasten liefern vom Spiel-Canvas je nach Layout ANDERE
+		// KeyCodes als die Swing-Erfassung — zusaetzlich uebers getippte ZEICHEN
+		// matchen (getExtendedKeyCodeForChar ist layout-unabhaengig).
+		boolean chartCharMatch = chartKb != null && chartKb.getModifiers() == 0
+			&& e.getKeyChar() != KeyEvent.CHAR_UNDEFINED
+			&& KeyEvent.getExtendedKeyCodeForChar(Character.toUpperCase(e.getKeyChar())) == chartKb.getKeyCode();
 		boolean chartMatch = (chartKb != null && chartKb.matches(e))
+			|| chartCharMatch
 			|| (e.isControlDown() && e.getKeyCode() == java.awt.event.KeyEvent.VK_G);
 		if (chartKb != null && e.getKeyCode() == chartKb.getKeyCode())
 		{
