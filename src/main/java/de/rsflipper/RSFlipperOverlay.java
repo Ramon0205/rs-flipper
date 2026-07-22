@@ -151,8 +151,11 @@ public class RSFlipperOverlay extends Overlay
 		{
 			int curQty = client.getVarbitValue(VARBIT_SETUP_QUANTITY);
 			int curPrice = client.getVarbitValue(VARBIT_SETUP_PRICE);
-			boolean isModify = s.getType().startsWith("modify");
-			boolean qtyOk = isModify || curQty == s.getQuantity();
+			// EINE Regel (Ramon 2026-07-22, ersetzt die isModify-Sonderbehandlung):
+			// Menge markieren NUR, wenn die Soll-Menge von der bereits im Setup
+			// stehenden abweicht — uebernommene Modify-Mengen leuchten nicht mehr,
+			// gewollte Mengen-Aenderungen schon (und Enter fuellt dann, s. OfferPrefill).
+			boolean qtyOk = curQty == s.getQuantity();
 			boolean priceOk = curPrice == s.getPrice();
 			if (!qtyOk)
 			{

@@ -143,8 +143,10 @@ public class OfferPrefill implements KeyListener
 			return 0;
 		}
 		String t = title.getText();
-		boolean isModify = s.getType().startsWith("modify");
-		if (t.startsWith("How many") && !isModify)
+		// Mengen-Uebernahme gilt fuer ALLE Vorschlagstypen (Ramon 2026-07-22, ersetzt
+		// die !isModify-Sperre): Wer die Mengen-Eingabe oeffnet, bekommt mit Enter die
+		// Soll-Menge — das Overlay markiert das Feld ohnehin nur noch bei Abweichung.
+		if (t.startsWith("How many"))
 		{
 			return s.getQuantity();
 		}
