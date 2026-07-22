@@ -194,20 +194,25 @@ public class OfferPrefill implements KeyListener
 		{
 			return;
 		}
-		// Chart-Hotkey (Ramon 2026-07-22): oeffnet die Item-Detailseite des aktuellen
-		// Vorschlags auf rs-flipper.com. Ganz vorn im Handler + doppelter Match
-		// (Keybind ODER hart Ctrl+G), damit keine spaetere Bedingung ihn schluckt.
-		boolean chartMatch = config.chartHotkey().matches(e)
+		// Chart-Hotkey (Ramon 2026-07-22): NUR bei offener Markthalle aktiv — dort wird
+		// die Taste komplett geschluckt (auch ohne Vorschlag, damit nichts in den Chat
+		// rutscht). Bei geschlossener GE tippt die Taste ganz normal (Chat).
+		net.runelite.client.config.Keybind chartKb = config.chartHotkey();
+		boolean chartMatch = (chartKb != null && chartKb.matches(e))
 			|| (e.isControlDown() && e.getKeyCode() == java.awt.event.KeyEvent.VK_G);
-		if (chartMatch)
+		if (chartKb != null && e.getKeyCode() == chartKb.getKeyCode())
+		{
+			log.debug("Chart-Key-Kandidat: code={} modEx={} bind={}:{} match={} geOpen={}",
+				e.getKeyCode(), e.getModifiersEx(), chartKb.getKeyCode(), chartKb.getModifiers(), chartMatch, geOpen());
+		}
+		if (chartMatch && geOpen())
 		{
 			ClientSuggestion cs = gameState.getCurrentSuggestion();
-			log.debug("Chart-Hotkey: suggestion={} item={}", cs != null ? cs.getType() : null, cs != null ? cs.getItemId() : -1);
 			if (cs != null && cs.getItemId() > 0)
 			{
 				net.runelite.client.util.LinkBrowser.browse("https://rs-flipper.com/items?item=" + cs.getItemId());
-				e.consume();
 			}
+			e.consume(); // Taste bei offener GE IMMER schlucken (Chat-Schutz)
 			return;
 		}
 		// '+' bei offener GE IMMER schlucken — unabhaengig davon, ob ein Skip
@@ -284,6 +289,19 @@ public class OfferPrefill implements KeyListener
 		if (!config.passiveMode() && e.getKeyChar() == '+' && geOpen())
 		{
 			e.consume();
+		}
+		// Chart-Taste (Ramon 2026-07-22): gleiches Muster — das getippte Zeichen der
+		// gebundenen Taste bei offener GE aus dem Chat fernhalten (modifierlose Binds;
+		// mit Strg/Alt entsteht ohnehin kein Chat-Zeichen).
+		if (!config.passiveMode() && geOpen())
+		{
+			net.runelite.client.config.Keybind kb = config.chartHotkey();
+			char c = e.getKeyChar();
+			if (kb != null && kb.getModifiers() == 0 && c != KeyEvent.CHAR_UNDEFINED
+				&& KeyEvent.getExtendedKeyCodeForChar(Character.toUpperCase(c)) == kb.getKeyCode())
+			{
+				e.consume();
+			}
 		}
 	}
 
