@@ -61,6 +61,7 @@ public class RSFlipperPanel extends PluginPanel
 	private final JLabel quotaLabel = new JLabel(" ");
 	private final javax.swing.JCheckBox useP2pBox = new javax.swing.JCheckBox("Use my free P2P suggestions");
 	private final JLabel quotaTimerLabel = new JLabel(" ");
+	private final JLabel buildLabel = new JLabel("Build: dev");
 	private final JPanel quotaRow = new JPanel();
 	private final JLabel tierTypeLabel = new JLabel(" ");
 	private final JLabel tierCharsLabel = new JLabel(" ");
@@ -623,6 +624,12 @@ public class RSFlipperPanel extends PluginPanel
 		discordButton.setForeground(java.awt.Color.WHITE);
 		discordButton.addActionListener(e -> net.runelite.client.util.LinkBrowser.browse("https://discord.gg/F62tcCa9jS"));
 		settingsTab.add(discordButton);
+		// Build-Kennung (Ramon 2026-07-22): eindeutig pruefbar, welcher Stand laeuft.
+		settingsTab.add(javax.swing.Box.createVerticalStrut(8));
+		buildLabel.setForeground(new java.awt.Color(120, 130, 140));
+		buildLabel.setFont(buildLabel.getFont().deriveFont(11f));
+		buildLabel.setAlignmentX(LEFT_ALIGNMENT);
+		settingsTab.add(buildLabel);
 
 		javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
 		tabs.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -643,6 +650,12 @@ public class RSFlipperPanel extends PluginPanel
 	void setStatus(String text)
 	{
 		SwingUtilities.invokeLater(() -> statusLabel.setText("<html><center>" + text + "</center></html>"));
+	}
+
+	/** Build-Kennung im Settings-Footer (Ramon 2026-07-22). */
+	void setBuildInfo(String build)
+	{
+		SwingUtilities.invokeLater(() -> buildLabel.setText("Build: " + build));
 	}
 
 	/** §4.6: Hotkey-Zeile mit Capture-Button — Klick, dann Taste drücken (ESC = abbrechen). */

@@ -200,7 +200,23 @@ public class RSFlipperPlugin extends Plugin
 				onSkip(s);
 			}
 		});
-		log.info("RS-Flipper gestartet (M4)");
+		// Build-Kennung (Ramon 2026-07-22): publish-testclient.sh legt beim Bauen eine
+		// build.txt in die Ressourcen — so ist am Log UND im Panel eindeutig pruefbar,
+		// welcher Stand wirklich laeuft (Julian-Fund: zwei Publishes, ein Dateiname).
+		// Dev-Builds aus dem Quelltext haben keine Datei -> "dev".
+		String build = "dev";
+		try (java.io.InputStream in = RSFlipperPlugin.class.getResourceAsStream("build.txt"))
+		{
+			if (in != null)
+			{
+				build = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).trim();
+			}
+		}
+		catch (Exception ignored)
+		{
+		}
+		panel.setBuildInfo(build);
+		log.info("RS-Flipper gestartet (M4) - Build {}", build);
 	}
 
 	@Override
