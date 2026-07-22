@@ -438,6 +438,20 @@ public class GameStateService
 		}
 	}
 
+	// Nie-geblockt-Prinzip (Ramon 2026-07-21): Skip auf Kauf-Wartung (modify_buy/abort)
+	// legt das Offer 3 min still, statt das Item zu blocken — der alte Weg (blockedItems)
+	// erzwang den Abort erst recht, weil ein geblocktes Item nie mehr "stillGood" war.
+	private final java.util.Map<Integer, Long> maintSkips = new java.util.concurrent.ConcurrentHashMap<>();
+
+	public void skipMaintenance(int itemId)
+	{
+		if (itemId > 0)
+		{
+			maintSkips.put(itemId, System.currentTimeMillis() + SELL_SKIP_MS);
+			dirty = true;
+		}
+	}
+
 	/** Baut den AccountStatus-Payload (SPEC §12.2) inkl. gepufferter Fill-Events (§12.4a). */
 	public JsonObject buildAccountStatus(String profile, String activity, String blockedCsv, boolean sellOnly, boolean paused,
 		int targetEtfMin, int minProfitGp, boolean useP2p, int dumpMinProfit, int reservedSlots)
@@ -471,6 +485,10 @@ public class GameStateService
 		sellSkips.entrySet().removeIf(e -> e.getValue() < now);
 		sellSkips.keySet().forEach(skippedSells::add);
 		o.add("sellSkips", skippedSells);
+		com.google.gson.JsonArray skippedMaint = new com.google.gson.JsonArray();
+		maintSkips.entrySet().removeIf(e -> e.getValue() < now);
+		maintSkips.keySet().forEach(skippedMaint::add);
+		o.add("maintSkips", skippedMaint);
 		o.addProperty("accountHash", client.getAccountHash());
 		// §4.3.6-Flow: welches Item gerade im GE-Setup offen ist (Abbruch-Erkennung
 		// des Modify-Flows serverseitig). Doppelter Fund 2026-07-18 (Antler guard /

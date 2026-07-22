@@ -219,9 +219,18 @@ public class RSFlipperPlugin extends Plugin
 		if ("sell".equals(t) || "modify_sell".equals(t))
 		{
 			// Sell-Skip (Ramon 2026-07-19): 3 min Ruhe fuer dieses Item — Markt
-			// beruhigen lassen, andere Slots arbeiten weiter. Stop-Loss bleibt scharf.
+			// beruhigen lassen, andere Slots arbeiten weiter. Gilt seit 2026-07-21
+			// auch fuer Stop-Loss-Vorschlaege (Nie-geblockt-Prinzip).
 			gameState.skipSell(s.getItemId());
 			panel.setStatus("Sell skipped: " + s.getItemName() + " (3 min)");
+		}
+		else if ("modify_buy".equals(t) || "abort".equals(t))
+		{
+			// Nie-geblockt-Prinzip (Ramon 2026-07-21): Wartungs-Skip legt das Offer
+			// 3 min still. NICHT skipItem/blockedItems — das erzwang den Abort erst
+			// recht (geblocktes Item war nie mehr "stillGood").
+			gameState.skipMaintenance(s.getItemId());
+			panel.setStatus("Skipped: " + s.getItemName() + " (3 min)");
 		}
 		else
 		{
