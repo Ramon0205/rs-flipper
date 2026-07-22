@@ -152,6 +152,21 @@ public class RSFlipperPlugin extends Plugin
 		// Session startet erst mit der ERSTEN GE-Öffnung (Ramon 2026-07-18) — 0 = wartet.
 		sessionStart = 0;
 		panel.setStatsRefresher(this::refreshStats);
+		// Blockliste im Settings-Tab: Item-Namen brauchen den Client-Thread (§1.5-Regel).
+		panel.setItemNameResolver((ids, cb) -> clientThread.invokeLater(() -> {
+			java.util.Map<Integer, String> names = new java.util.HashMap<>();
+			for (Integer id : ids)
+			{
+				try
+				{
+					names.put(id, itemManager.getItemComposition(id).getName());
+				}
+				catch (Exception ignored)
+				{
+				}
+			}
+			cb.accept(names);
+		}));
 		panel.setSessionStart(0);
 		panel.setOnResetSession(() -> {
 			sessionStart = 0;
@@ -262,7 +277,8 @@ public class RSFlipperPlugin extends Plugin
 		String current = config.blockedItems();
 		String updated = current == null || current.isEmpty() ? String.valueOf(s.getItemId()) : current + "," + s.getItemId();
 		configManager.setConfiguration(RSFlipperConfig.GROUP, "blockedItems", updated);
-		panel.setStatus("Blockiert: " + s.getItemName());
+		panel.setStatus("Blocked: " + s.getItemName());
+		panel.refreshBlockedList();
 		gameState.markDirty();
 		ticksSinceSync = SYNC_TICKS;
 	}

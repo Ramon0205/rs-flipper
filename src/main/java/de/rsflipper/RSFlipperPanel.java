@@ -52,7 +52,7 @@ public class RSFlipperPanel extends PluginPanel
 	private final JButton skipButton = new JButton("Skip [+]");
 	private final JButton chartButton = new JButton("Chart");
 	private final JButton blockButton = new JButton("Block");
-	private final JToggleButton pauseToggle = new JToggleButton("Pause");
+	// Pause-Button entfernt (Ramon 2026-07-22): der Passivmodus in den Settings deckt das ab.
 	private final JToggleButton sellOnlyToggle = new JToggleButton("Sell only");
 
 	private volatile ClientSuggestion current;
@@ -63,6 +63,86 @@ public class RSFlipperPanel extends PluginPanel
 	private final javax.swing.JCheckBox useP2pBox = new javax.swing.JCheckBox("Use my free P2P suggestions");
 	private final JLabel quotaTimerLabel = new JLabel(" ");
 	private final JLabel buildLabel = new JLabel("Build: dev");
+	private final JPanel blockedListPanel = new JPanel();
+	/** Item-Namen aufloesen (Client-Thread noetig) — vom Plugin gesetzt. */
+	private volatile java.util.function.BiConsumer<java.util.List<Integer>, java.util.function.Consumer<java.util.Map<Integer, String>>> nameResolver;
+
+	void setItemNameResolver(java.util.function.BiConsumer<java.util.List<Integer>, java.util.function.Consumer<java.util.Map<Integer, String>>> r)
+	{
+		this.nameResolver = r;
+		refreshBlockedList();
+	}
+
+	/** Blockliste im Settings-Tab neu aufbauen (nach Block/Unblock/Sync). */
+	void refreshBlockedList()
+	{
+		SwingUtilities.invokeLater(() -> {
+			blockedListPanel.removeAll();
+			java.util.List<Integer> ids = new java.util.ArrayList<>();
+			String raw = config.blockedItems() == null ? "" : config.blockedItems();
+			for (String part : raw.split(","))
+			{
+				try
+				{
+					int id = Integer.parseInt(part.trim());
+					if (id > 0)
+					{
+						ids.add(id);
+					}
+				}
+				catch (NumberFormatException ignored)
+				{
+				}
+			}
+			if (ids.isEmpty())
+			{
+				JLabel none = new JLabel("No blocked items.");
+				none.setForeground(new java.awt.Color(120, 130, 140));
+				none.setFont(none.getFont().deriveFont(12f));
+				blockedListPanel.add(none);
+				blockedListPanel.revalidate();
+				blockedListPanel.repaint();
+				return;
+			}
+			java.util.function.Consumer<java.util.Map<Integer, String>> render = names -> SwingUtilities.invokeLater(() -> {
+				blockedListPanel.removeAll();
+				for (Integer id : ids)
+				{
+					JPanel row = new JPanel(new BorderLayout(6, 0));
+					row.setBackground(ColorScheme.DARK_GRAY_COLOR);
+					row.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 26));
+					JLabel name = new JLabel(names.getOrDefault(id, "Item " + id));
+					name.setForeground(java.awt.Color.WHITE);
+					name.setFont(name.getFont().deriveFont(12f));
+					JButton remove = new JButton("\u2715");
+					remove.setMargin(new java.awt.Insets(0, 6, 0, 6));
+					remove.setToolTipText("Remove from blocklist - item can be suggested again");
+					remove.addActionListener(ev -> {
+						java.util.List<Integer> rest = new java.util.ArrayList<>(ids);
+						rest.remove(id);
+						String joined = rest.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+						configManager.setConfiguration(RSFlipperConfig.GROUP, "blockedItems", joined);
+						refreshBlockedList();
+					});
+					row.add(name, BorderLayout.CENTER);
+					row.add(remove, BorderLayout.EAST);
+					blockedListPanel.add(row);
+					blockedListPanel.add(javax.swing.Box.createVerticalStrut(3));
+				}
+				blockedListPanel.revalidate();
+				blockedListPanel.repaint();
+			});
+			java.util.function.BiConsumer<java.util.List<Integer>, java.util.function.Consumer<java.util.Map<Integer, String>>> r = nameResolver;
+			if (r != null)
+			{
+				r.accept(ids, render);
+			}
+			else
+			{
+				render.accept(java.util.Collections.emptyMap());
+			}
+		});
+	}
 	private final JPanel quotaRow = new JPanel();
 	private final JLabel tierTypeLabel = new JLabel(" ");
 	private final JLabel tierCharsLabel = new JLabel(" ");
@@ -73,69 +153,7 @@ public class RSFlipperPanel extends PluginPanel
 	private volatile boolean upsellLinkActive = false;
 	private final javax.swing.JCheckBox passiveBox = new javax.swing.JCheckBox("Passive mode (observe only)");
 
-	// §4.6: Mini-Preisgraph (5m-Serie high/low) — eigene Leichtgewicht-Komponente.
-	private static final class PriceGraph extends javax.swing.JComponent
-	{
-		private volatile long[] high = new long[0];
-		private volatile long[] low = new long[0];
 
-		void setSeries(long[] high, long[] low)
-		{
-			this.high = high;
-			this.low = low;
-			repaint();
-		}
-
-		@Override
-		protected void paintComponent(java.awt.Graphics g0)
-		{
-			java.awt.Graphics2D g = (java.awt.Graphics2D) g0;
-			g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-			g.setColor(ColorScheme.DARKER_GRAY_COLOR);
-			g.fillRect(0, 0, getWidth(), getHeight());
-			long[] hi = high;
-			long[] lo = low;
-			long min = Long.MAX_VALUE;
-			long max = Long.MIN_VALUE;
-			for (long v : hi)
-			{
-				if (v > 0) { min = Math.min(min, v); max = Math.max(max, v); }
-			}
-			for (long v : lo)
-			{
-				if (v > 0) { min = Math.min(min, v); max = Math.max(max, v); }
-			}
-			if (min == Long.MAX_VALUE || max <= min)
-			{
-				return;
-			}
-			drawLine(g, hi, new Color(46, 204, 113), min, max);
-			drawLine(g, lo, new Color(231, 76, 60), min, max);
-		}
-
-		private void drawLine(java.awt.Graphics2D g, long[] series, Color c, long min, long max)
-		{
-			g.setColor(c);
-			int w = getWidth();
-			int h = getHeight() - 4;
-			int prevX = -1;
-			int prevY = -1;
-			for (int i = 0; i < series.length; i++)
-			{
-				if (series[i] <= 0) { prevX = -1; continue; }
-				int x = (int) ((long) i * (w - 4) / Math.max(1, series.length - 1)) + 2;
-				int y = 2 + (int) ((max - series[i]) * h / Math.max(1, max - min));
-				if (prevX >= 0)
-				{
-					g.drawLine(prevX, prevY, x, y);
-				}
-				prevX = x;
-				prevY = y;
-			}
-		}
-	}
-
-	private final PriceGraph priceGraph = new PriceGraph();
 	private final JLabel whyLabel = new JLabel(" ");
 
 	// §4.5/§4.6 UI v2: Profit-Sektion im Flip-Tab
@@ -229,6 +247,9 @@ public class RSFlipperPanel extends PluginPanel
 		return sel != null ? sel.toString() : "Session";
 	}
 
+	private final RSFlipperConfig config;
+	private final net.runelite.client.config.ConfigManager configManager;
+
 	RSFlipperPanel(Consumer<ClientSuggestion> onSkip, Consumer<ClientSuggestion> onBlock, Runnable onToggleChanged,
 		RSFlipperConfig config, net.runelite.client.config.ConfigManager configManager,
 		de.rsflipper.api.AuthService auth, java.util.function.Supplier<String> serverUrl)
@@ -236,6 +257,8 @@ public class RSFlipperPanel extends PluginPanel
 		// wrap=false: RuneLite staucht gewrappte Panels auf ihre bevorzugte Höhe —
 		// wir wollen die VOLLE Sidebar-Höhe (Item-Liste bis zum Fensterende, Ramon 2026-07-18).
 		super(false);
+		this.config = config;
+		this.configManager = configManager;
 		setLayout(new BorderLayout());
 		setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 		setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -275,7 +298,6 @@ public class RSFlipperPanel extends PluginPanel
 				onBlock.accept(s);
 			}
 		});
-		pauseToggle.addActionListener(e -> onToggleChanged.run());
 		sellOnlyToggle.addActionListener(e -> onToggleChanged.run());
 
 		// Chart-Button (Ramon 2026-07-22): oeffnet die Item-Detailseite mit Preisgraph
@@ -287,16 +309,21 @@ public class RSFlipperPanel extends PluginPanel
 				net.runelite.client.util.LinkBrowser.browse("https://rs-flipper.com/items?item=" + s.getItemId());
 			}
 		});
-		JPanel actionRow = new JPanel(new GridLayout(1, 3, 6, 0));
+		// Layout (Ramon 2026-07-22): Chart volle Breite, darunter Skip | Block halb/halb.
+		JPanel actionRow = new JPanel(new java.awt.GridBagLayout());
 		actionRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		actionRow.add(skipButton);
-		actionRow.add(blockButton);
-		actionRow.add(chartButton);
-
-		JPanel toggleRow = new JPanel(new GridLayout(1, 2, 6, 0));
-		toggleRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
-		toggleRow.add(pauseToggle);
-		toggleRow.add(sellOnlyToggle);
+		java.awt.GridBagConstraints gc = new java.awt.GridBagConstraints();
+		gc.fill = java.awt.GridBagConstraints.HORIZONTAL;
+		gc.weightx = 1;
+		gc.insets = new java.awt.Insets(0, 0, 6, 0);
+		gc.gridx = 0; gc.gridy = 0; gc.gridwidth = 2;
+		actionRow.add(chartButton, gc);
+		gc.gridwidth = 1; gc.gridy = 1;
+		gc.insets = new java.awt.Insets(0, 0, 0, 3);
+		actionRow.add(skipButton, gc);
+		gc.gridx = 1;
+		gc.insets = new java.awt.Insets(0, 3, 0, 0);
+		actionRow.add(blockButton, gc);
 
 		content.add(javax.swing.Box.createVerticalStrut(10)); // Luft nach oben (Ramon 2026-07-19)
 		content.add(title);
@@ -350,16 +377,9 @@ public class RSFlipperPanel extends PluginPanel
 		content.add(quotaRow);
 		content.add(javax.swing.Box.createVerticalStrut(4));
 		new javax.swing.Timer(30_000, e -> updateQuotaTimer()).start();
-		priceGraph.setPreferredSize(new java.awt.Dimension(200, 60));
-		priceGraph.setMinimumSize(new java.awt.Dimension(100, 60));
-		priceGraph.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 60));
-		priceGraph.setAlignmentX(CENTER_ALIGNMENT);
-		priceGraph.setToolTipText("5-min-Preisverlauf (~6 h): grün = Instabuy-Schnitt, rot = Instasell-Schnitt");
-		content.add(priceGraph);
-		content.add(javax.swing.Box.createVerticalStrut(8));
+		// Mini-Preisgraph entfernt (Ramon 2026-07-22): zu wenig ablesbar — der
+		// Chart-Button oeffnet stattdessen den vollen Graph auf der Website.
 		content.add(actionRow);
-		content.add(javax.swing.Box.createVerticalStrut(6));
-		content.add(toggleRow);
 
 		// ── Profit-Sektion (§4.6 UI v2 — Ramon 2026-07-18) ──
 		JPanel profitHeader = new JPanel(new BorderLayout(0, 2));
@@ -573,6 +593,24 @@ public class RSFlipperPanel extends PluginPanel
 		settingsTab.add(javax.swing.Box.createVerticalStrut(4));
 		settingsTab.add(hotkeyRow("Skip suggestion:", "skipHotkey", config.skipHotkey(), configManager));
 		settingsTab.add(hotkeyRow("Open item chart:", "chartHotkey", config.chartHotkey(), configManager));
+
+		// Sell-only hierher verschoben (Ramon 2026-07-22): macht im Hauptbereich Platz.
+		settingsTab.add(javax.swing.Box.createVerticalStrut(10));
+		sellOnlyToggle.setAlignmentX(LEFT_ALIGNMENT);
+		sellOnlyToggle.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 28));
+		settingsTab.add(sellOnlyToggle);
+
+		// Blockliste (Ramon 2026-07-22): Uebersicht + Entfernen direkt im Panel.
+		settingsTab.add(javax.swing.Box.createVerticalStrut(10));
+		JLabel blockedCaption = new JLabel("Blocked items:");
+		blockedCaption.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		blockedCaption.setAlignmentX(LEFT_ALIGNMENT);
+		settingsTab.add(blockedCaption);
+		blockedListPanel.setLayout(new javax.swing.BoxLayout(blockedListPanel, javax.swing.BoxLayout.Y_AXIS));
+		blockedListPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		blockedListPanel.setAlignmentX(LEFT_ALIGNMENT);
+		settingsTab.add(blockedListPanel);
+		refreshBlockedList();
 
 		// M12a Dump-Alerts (Ramon 2026-07-19): Opt-in-Schwelle, reservierte Slots, Sound.
 		settingsTab.add(javax.swing.Box.createVerticalStrut(14));
@@ -1114,15 +1152,13 @@ public class RSFlipperPanel extends PluginPanel
 			skipButton.setEnabled(actionable && s.getItemId() > 0);
 			chartButton.setEnabled(s.getItemId() > 0);
 			blockButton.setEnabled(actionable && s.getItemId() > 0);
-			priceGraph.setSeries(s.getGraphHigh(), s.getGraphLow());
-			priceGraph.setVisible(s.getGraphHigh().length > 0);
 			suggestionRow.revalidate(); // Höhe an neuen Inhalt anpassen
 		});
 	}
 
 	boolean isPaused()
 	{
-		return pauseToggle.isSelected();
+		return false; // Pause-Button entfernt (Ramon 2026-07-22) — Passivmodus uebernimmt
 	}
 
 	boolean isSellOnly()
