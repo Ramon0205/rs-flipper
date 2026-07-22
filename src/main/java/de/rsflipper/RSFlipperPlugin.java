@@ -310,6 +310,13 @@ public class RSFlipperPlugin extends Plugin
 		{
 			gameState.onInventoryChanged(e.getItemContainer());
 		}
+		// Positions-Abgleich (Ramon 2026-07-22): Bank offen -> Bestaende der offenen
+		// Positions-Items an den Server melden (bullet-proof gegen Phantom-Lots und
+		// untracked Verkaeufe; Bank-Items waren fuer die Engine bisher unsichtbar).
+		if (e.getContainerId() == InventoryID.BANK.getId())
+		{
+			gameState.onBankSnapshot(e.getItemContainer());
+		}
 	}
 
 	@Subscribe
@@ -582,6 +589,18 @@ public class RSFlipperPlugin extends Plugin
 					});
 				}
 				gameState.setSlotHud(slotHud);
+				// Positions-Abgleich (Ramon 2026-07-22): offene Positions-Items merken;
+				// beim naechsten Bank-Oeffnen melden wir deren Bestaende zurueck.
+				if (response.has("positionItems") && response.get("positionItems").isJsonArray())
+				{
+					java.util.Set<Integer> items = new java.util.HashSet<>();
+					response.getAsJsonArray("positionItems").forEach(x -> items.add(x.getAsInt()));
+					gameState.setPositionItems(items);
+				}
+				if (response.has("reconcileNote") && !response.get("reconcileNote").isJsonNull())
+				{
+					panel.setStatus(response.get("reconcileNote").getAsString());
+				}
 				if (response.has("flipResults") && response.get("flipResults").isJsonArray())
 				{
 					response.getAsJsonArray("flipResults").forEach(e -> {

@@ -203,6 +203,42 @@ public class GameStateService
 		urgent = true;
 	}
 
+	// Positions-Abgleich (Ramon 2026-07-22): Items mit offener Server-Position — beim
+	// naechsten Bank-Oeffnen melden wir deren Bank-Bestaende (0 = nicht in der Bank).
+	private volatile java.util.Set<Integer> positionItems = java.util.Collections.emptySet();
+	private final Map<Integer, Integer> pendingBankCounts = new java.util.concurrent.ConcurrentHashMap<>();
+	private volatile boolean bankSnapshotPending = false;
+
+	public void setPositionItems(java.util.Set<Integer> items)
+	{
+		this.positionItems = items;
+	}
+
+	public void onBankSnapshot(ItemContainer bank)
+	{
+		java.util.Set<Integer> wanted = positionItems;
+		if (wanted.isEmpty())
+		{
+			return;
+		}
+		Map<Integer, Integer> counts = new HashMap<>();
+		for (Integer id : wanted)
+		{
+			counts.put(id, 0); // explizite 0 = "nicht in der Bank" (entscheidend fuer den Abgleich)
+		}
+		for (Item item : bank.getItems())
+		{
+			if (item.getId() > 0 && counts.containsKey(item.getId()))
+			{
+				counts.merge(item.getId(), item.getQuantity(), Integer::sum);
+			}
+		}
+		pendingBankCounts.clear();
+		pendingBankCounts.putAll(counts);
+		bankSnapshotPending = true;
+		markDirty();
+	}
+
 	public void onInventoryChanged(ItemContainer container)
 	{
 		gp = 0;
@@ -489,6 +525,20 @@ public class GameStateService
 		maintSkips.entrySet().removeIf(e -> e.getValue() < now);
 		maintSkips.keySet().forEach(skippedMaint::add);
 		o.add("maintSkips", skippedMaint);
+		// Positions-Abgleich: Bank-Snapshot EINMAL mitschicken, dann verwerfen.
+		if (bankSnapshotPending)
+		{
+			com.google.gson.JsonArray bankArr = new com.google.gson.JsonArray();
+			for (Map.Entry<Integer, Integer> e : pendingBankCounts.entrySet())
+			{
+				com.google.gson.JsonObject b = new com.google.gson.JsonObject();
+				b.addProperty("itemId", e.getKey());
+				b.addProperty("qty", e.getValue());
+				bankArr.add(b);
+			}
+			o.add("bankCounts", bankArr);
+			bankSnapshotPending = false;
+		}
 		o.addProperty("accountHash", client.getAccountHash());
 		// §4.3.6-Flow: welches Item gerade im GE-Setup offen ist (Abbruch-Erkennung
 		// des Modify-Flows serverseitig). Doppelter Fund 2026-07-18 (Antler guard /
