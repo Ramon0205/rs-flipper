@@ -316,7 +316,7 @@ public class RSFlipperPanel extends PluginPanel
 		java.awt.GridBagConstraints gc = new java.awt.GridBagConstraints();
 		gc.fill = java.awt.GridBagConstraints.HORIZONTAL;
 		gc.weightx = 1;
-		gc.insets = new java.awt.Insets(0, 0, 6, 0);
+		gc.insets = new java.awt.Insets(0, 0, 4, 0);
 		gc.gridx = 0; gc.gridy = 0; gc.gridwidth = 2;
 		actionRow.add(chartButton, gc);
 		gc.gridwidth = 1; gc.gridy = 1;
@@ -350,7 +350,7 @@ public class RSFlipperPanel extends PluginPanel
 			}
 		});
 		content.add(suggestionRow);
-		content.add(javax.swing.Box.createVerticalStrut(6));
+		content.add(javax.swing.Box.createVerticalStrut(4));
 		// ── Free-Tier-Kontingent (nur sichtbar fuer Free-User) ──
 		quotaRow.setLayout(new BoxLayout(quotaRow, BoxLayout.Y_AXIS));
 		quotaRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -376,7 +376,6 @@ public class RSFlipperPanel extends PluginPanel
 		quotaRow.add(quotaTimerLabel);
 		quotaRow.setVisible(false);
 		content.add(quotaRow);
-		content.add(javax.swing.Box.createVerticalStrut(4));
 		new javax.swing.Timer(30_000, e -> updateQuotaTimer()).start();
 		// Mini-Preisgraph entfernt (Ramon 2026-07-22): zu wenig ablesbar — der
 		// Chart-Button oeffnet stattdessen den vollen Graph auf der Website.
@@ -434,7 +433,7 @@ public class RSFlipperPanel extends PluginPanel
 			c.setAlignmentX(CENTER_ALIGNMENT);
 			c.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, c.getPreferredSize().height + 8));
 		}
-		content.add(javax.swing.Box.createVerticalStrut(12));
+		content.add(javax.swing.Box.createVerticalStrut(8));
 		javax.swing.JSeparator sep = new javax.swing.JSeparator();
 		sep.setForeground(ColorScheme.DARKER_GRAY_COLOR);
 		content.add(sep);
@@ -593,6 +592,7 @@ public class RSFlipperPanel extends PluginPanel
 		settingsTab.add(hotkeyRow("Apply suggestion:", "fillHotkey", config.fillHotkey(), configManager));
 		settingsTab.add(javax.swing.Box.createVerticalStrut(4));
 		settingsTab.add(hotkeyRow("Skip suggestion:", "skipHotkey", config.skipHotkey(), configManager));
+		settingsTab.add(javax.swing.Box.createVerticalStrut(4));
 		settingsTab.add(hotkeyRow("Open item chart:", "chartHotkey", config.chartHotkey(), configManager));
 
 		// Sell-only hierher verschoben (Ramon 2026-07-22): macht im Hauptbereich Platz.
@@ -742,8 +742,22 @@ public class RSFlipperPanel extends PluginPanel
 					btn.setText(keybindText(currentKeybind(configManager, configKey)));
 					return;
 				}
+				// macOS-Falle (Ramon 2026-07-22): Fuer Sonderzeichen liefert Swing den
+				// US-Layout-KeyCode ('-' wurde als '/' erfasst). Bei druckbaren Zeichen
+				// den Code deshalb aus dem ZEICHEN ableiten — layout-unabhaengig und
+				// identisch zum In-Game-Fallback (getExtendedKeyCodeForChar).
+				int code = e.getKeyCode();
+				char ch = e.getKeyChar();
+				if (ch != java.awt.event.KeyEvent.CHAR_UNDEFINED && !Character.isISOControl(ch))
+				{
+					int fromChar = java.awt.event.KeyEvent.getExtendedKeyCodeForChar(Character.toUpperCase(ch));
+					if (fromChar != java.awt.event.KeyEvent.VK_UNDEFINED)
+					{
+						code = fromChar;
+					}
+				}
 				net.runelite.client.config.Keybind kb =
-					new net.runelite.client.config.Keybind(e.getKeyCode(), e.getModifiersEx());
+					new net.runelite.client.config.Keybind(code, e.getModifiersEx());
 				configManager.setConfiguration(RSFlipperConfig.GROUP, configKey, kb);
 				btn.setText(keybindText(kb));
 				e.consume();
