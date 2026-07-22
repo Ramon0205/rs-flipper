@@ -325,6 +325,12 @@ public class RSFlipperPanel extends PluginPanel
 		gc.gridx = 1;
 		gc.insets = new java.awt.Insets(0, 3, 0, 0);
 		actionRow.add(blockButton, gc);
+		// BoxLayout streckt Panels vertikal und GridBag ZENTRIERT dann die Buttons —
+		// die leeren Baender oben/unten (Ramon 2026-07-22) verschwinden mit einem
+		// harten Hoehendeckel auf die tatsaechliche Wunschhoehe.
+		actionRow.setAlignmentX(CENTER_ALIGNMENT);
+		actionRow.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE,
+			chartButton.getPreferredSize().height + skipButton.getPreferredSize().height + 4));
 
 		content.add(javax.swing.Box.createVerticalStrut(10)); // Luft nach oben (Ramon 2026-07-19)
 		content.add(title);

@@ -139,11 +139,11 @@ public interface RSFlipperConfig extends Config
 		return new net.runelite.client.config.Keybind(java.awt.event.KeyEvent.VK_PLUS, 0);
 	}
 
-	@ConfigItem(keyName = "chartHotkey", name = "Chart hotkey", description = "Key that opens the suggested item's price chart on rs-flipper.com", position = 7)
+	@ConfigItem(keyName = "chartHotkey", name = "Chart hotkey", description = "Key that opens the suggested item's price chart on rs-flipper.com (only while the GE is open)", position = 7)
 	default net.runelite.client.config.Keybind chartHotkey()
 	{
-		// Standard: Ctrl+G ("graph") — kollidiert nicht mit Chat-Tippen.
-		return new net.runelite.client.config.Keybind(java.awt.event.KeyEvent.VK_G, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+		// Standard: '-' (Ramon 2026-07-22) — wirkt nur bei offener GE, tippt dort nie in den Chat.
+		return new net.runelite.client.config.Keybind(java.awt.event.KeyEvent.VK_MINUS, 0);
 	}
 
 	@ConfigItem(keyName = "passiveMode", name = "Passive mode (observe only)", description = "Plugin keeps syncing with the server (suggestion logging) but never touches the game (no highlights, hotkey fills, GE search entry or slot action swap). For running alongside other flipping plugins.", position = 8)
