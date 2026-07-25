@@ -17,14 +17,29 @@ trade automatically. Open the GE, follow the suggestion, collect the profit.
   stats, gp/h and a full flip history (also on your web dashboard)
 - **Real-time dump alerts**: when someone panic-sells far below market value,
   the plugin flashes and pre-fills the buy — you only confirm
+- **Item price charts** on demand: a keybind opens the full price history for
+  the item you are currently looking at
 - **Settings sync** across devices
 
-## Requirements
+## Getting started
 
-RS-Flipper is powered by a server-side suggestion engine. A free account
-(created at [rs-flipper.com](https://rs-flipper.com) or via Discord login
-inside the plugin) is required. **During the launch period every feature is
-free, with unlimited characters.**
+1. Enable RS-Flipper in the plugin list — the side panel appears with the
+   RS-Flipper icon.
+2. Log in from the panel, either with an account created at
+   [rs-flipper.com](https://rs-flipper.com) or with Discord.
+3. In the settings tab, set your **target time to fill** and your **minimum
+   profit** so suggestions match how you like to trade.
+4. Open the Grand Exchange. The panel always shows the single next action, and
+   the offer screen highlights the price and quantity to enter.
+5. Use **Skip** if you would rather not trade a suggestion, or **Block** to
+   exclude an item entirely. Blocked items stay listed in the settings tab and
+   can be released again at any time.
+
+## Requirements and data use
+
+RS-Flipper is powered by a server-side suggestion engine, so a free account is
+required. **During the launch period every feature is free, with unlimited
+characters.**
 
 To generate suggestions and track your flips, the plugin sends your current
 Grand Exchange offers, trade fills, inventory coin/item context and game name
@@ -33,7 +48,7 @@ pseudonymous hash. Details: [Privacy Policy](https://rs-flipper.com/legal/privac
 and [Terms](https://rs-flipper.com/legal/terms).
 
 RS-Flipper only makes suggestions. It never automates gameplay, clicks or
-inputs of any kind.
+inputs of any kind — every order is placed by you.
 
 ## Support
 
