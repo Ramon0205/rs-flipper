@@ -39,6 +39,8 @@ public class OfferPrefill implements KeyListener
 	private final GameStateService gameState;
 	private final RSFlipperConfig config;
 	private final de.rsflipper.api.ApiClient api;
+	/** Gemeinsamer RuneLite-Scheduler statt eines eigenen Timer-Threads je Aufruf. */
+	private final java.util.concurrent.ScheduledExecutorService scheduler;
 
 	/** §4.6 Manuelle-Trade-Hilfe: optimale Preise fürs gerade offene Setup-Item. */
 	@Getter
@@ -64,13 +66,14 @@ public class OfferPrefill implements KeyListener
 
 	@Inject
 	OfferPrefill(Client client, ClientThread clientThread, GameStateService gameState, RSFlipperConfig config,
-		de.rsflipper.api.ApiClient api)
+		de.rsflipper.api.ApiClient api, java.util.concurrent.ScheduledExecutorService scheduler)
 	{
 		this.client = client;
 		this.clientThread = clientThread;
 		this.gameState = gameState;
 		this.config = config;
 		this.api = api;
+		this.scheduler = scheduler;
 	}
 
 	/** Vom Plugin je GameTick aufgerufen (ClientThread): Anzeige-Wert aktuell halten. */
@@ -114,14 +117,7 @@ public class OfferPrefill implements KeyListener
 			quoteInFlight = false;
 		});
 		// Fehlerfall: in-flight nach TTL wieder freigeben (kein Dauerblock).
-		new java.util.Timer().schedule(new java.util.TimerTask()
-		{
-			@Override
-			public void run()
-			{
-				quoteInFlight = false;
-			}
-		}, 5000);
+		scheduler.schedule(() -> quoteInFlight = false, 5000, java.util.concurrent.TimeUnit.MILLISECONDS);
 	}
 
 	/** Menge oder Preis — je nachdem, was die offene Eingabe gerade abfragt. */

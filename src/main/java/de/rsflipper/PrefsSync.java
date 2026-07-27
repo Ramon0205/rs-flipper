@@ -32,16 +32,20 @@ public class PrefsSync
 	/** Echo-Schutz: waehrend apply() keine Push-Trigger aus ConfigChanged. */
 	private volatile boolean applying;
 	private volatile boolean pushScheduled;
-	private final java.util.Timer timer = new java.util.Timer("prefs-sync", true);
+	/** Kein eigener Timer-Thread (Auflage des Plugin-Hub-Reviews) — RuneLite stellt
+	 *  einen gemeinsamen Scheduler bereit, der beim Client-Shutdown mit heruntergefahren wird. */
+	private final java.util.concurrent.ScheduledExecutorService scheduler;
 
 	@Inject
 	PrefsSync(ConfigManager configManager, RSFlipperConfig config,
-		de.rsflipper.api.ApiClient api, de.rsflipper.api.AuthService auth)
+		de.rsflipper.api.ApiClient api, de.rsflipper.api.AuthService auth,
+		java.util.concurrent.ScheduledExecutorService scheduler)
 	{
 		this.configManager = configManager;
 		this.config = config;
 		this.api = api;
 		this.auth = auth;
+		this.scheduler = scheduler;
 	}
 
 	private long localModifiedAt()
@@ -84,15 +88,10 @@ public class PrefsSync
 			return;
 		}
 		pushScheduled = true;
-		timer.schedule(new java.util.TimerTask()
-		{
-			@Override
-			public void run()
-			{
-				pushScheduled = false;
-				push();
-			}
-		}, 1500);
+		scheduler.schedule(() -> {
+			pushScheduled = false;
+			push();
+		}, 1500, java.util.concurrent.TimeUnit.MILLISECONDS);
 	}
 
 	private void push()

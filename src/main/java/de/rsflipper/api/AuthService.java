@@ -3,6 +3,9 @@ package de.rsflipper.api;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -31,17 +34,32 @@ public class AuthService
 	private static final String KEY_REFRESH = "authRefreshToken";
 	private static final String KEY_EMAIL = "authEmail";
 
+	/** Device-Flow: 2,5 s zwischen zwei Abfragen, hoechstens 4 Minuten insgesamt. */
+	private static final long POLL_DELAY_MS = 2500;
+	private static final int POLL_MAX_TRIES = 96;
+
 	private final OkHttpClient http;
 	private final Gson gson;
 	private final ConfigManager configManager;
+	private final ScheduledExecutorService scheduler;
 	private volatile boolean refreshing = false;
+	/** Laufender Device-Flow, damit ein zweiter Login-Versuch den alten ablöst. */
+	private volatile ScheduledFuture<?> discordPoll;
+	/**
+	 * Generationszaehler des Device-Flows. cancel() auf dem Future allein genuegt NICHT:
+	 * Ist gerade eine HTTP-Abfrage unterwegs, wuerde deren Callback den naechsten Versuch
+	 * trotzdem einplanen. Jeder Lauf merkt sich seine Generation und bricht ab, sobald
+	 * eine neuere existiert.
+	 */
+	private volatile long discordPollGen;
 
 	@Inject
-	public AuthService(OkHttpClient http, Gson gson, ConfigManager configManager)
+	public AuthService(OkHttpClient http, Gson gson, ConfigManager configManager, ScheduledExecutorService scheduler)
 	{
 		this.http = http;
 		this.gson = gson;
 		this.configManager = configManager;
+		this.scheduler = scheduler;
 	}
 
 	public boolean isLoggedIn()
@@ -135,48 +153,94 @@ public class AuthService
 		}
 		String code = sb.toString();
 		net.runelite.client.util.LinkBrowser.browse(serverUrl + "/auth/discord/start?device=" + code);
-		Thread poller = new Thread(() -> {
-			try
+		cancelDiscordPoll();
+		schedulePoll(serverUrl, code, 1, onDone, ++discordPollGen);
+	}
+
+	/** Laufenden Device-Flow beenden (neuer Login-Versuch oder Plugin-Shutdown). */
+	public void cancelDiscordPoll()
+	{
+		discordPollGen++; // laufende Callbacks entwerten
+		ScheduledFuture<?> laufend = discordPoll;
+		if (laufend != null)
+		{
+			laufend.cancel(false);
+			discordPoll = null;
+		}
+	}
+
+	/**
+	 * Eine einzelne Abfrage des Device-Flows einplanen.
+	 *
+	 * Bewusst OHNE eigenen Thread, ohne Thread.sleep und ohne Interrupt (Auflage des
+	 * Plugin-Hub-Reviews): Der Takt kommt vom ScheduledExecutorService von RuneLite,
+	 * die HTTP-Abfrage laeuft asynchron ueber OkHttp. Der jeweils naechste Versuch
+	 * wird erst aus der Antwort heraus eingeplant — so blockiert nie ein Thread, und
+	 * es gibt nichts zu unterbrechen. Abgebrochen wird ueber cancel() des Futures.
+	 */
+	private void schedulePoll(String serverUrl, String code, int versuch, Consumer<String> onDone, long gen)
+	{
+		if (gen != discordPollGen)
+		{
+			return; // abgebrochen oder von einem neueren Login-Versuch abgeloest
+		}
+		if (versuch > POLL_MAX_TRIES)
+		{
+			discordPoll = null;
+			onDone.accept("Discord login timed out - please try again");
+			return;
+		}
+		discordPoll = scheduler.schedule(() -> {
+			if (gen != discordPollGen)
 			{
-				for (int i = 0; i < 96; i++)
+				return;
+			}
+			JsonObject body = new JsonObject();
+			body.addProperty("code", code);
+			Request request = new Request.Builder()
+				.url(serverUrl + "/auth/device/poll")
+				.post(RequestBody.create(JSON, body.toString()))
+				.build();
+			http.newCall(request).enqueue(new Callback()
+			{
+				@Override
+				public void onFailure(Call call, IOException e)
 				{
-					Thread.sleep(2500);
-					JsonObject body = new JsonObject();
-					body.addProperty("code", code);
-					Request request = new Request.Builder()
-						.url(serverUrl + "/auth/device/poll")
-						.post(RequestBody.create(JSON, body.toString()))
-						.build();
-					try (Response r = http.newCall(request).execute())
+					// Netz-Huckel: einfach weiterpollen
+					schedulePoll(serverUrl, code, versuch + 1, onDone, gen);
+				}
+
+				@Override
+				public void onResponse(Call call, Response response)
+				{
+					try (Response r = response)
 					{
-						if (!r.isSuccessful() || r.body() == null)
+						if (gen != discordPollGen)
 						{
-							continue;
-						}
-						JsonObject d = gson.fromJson(r.body().string(), JsonObject.class);
-						if (d != null && d.has("ready") && d.get("ready").getAsBoolean())
-						{
-							configManager.setConfiguration(GROUP, KEY_ACCESS, d.get("accessToken").getAsString());
-							configManager.setConfiguration(GROUP, KEY_REFRESH, d.get("refreshToken").getAsString());
-							configManager.setConfiguration(GROUP, KEY_EMAIL, d.get("email").getAsString());
-							onDone.accept(null);
 							return;
 						}
+						if (r.isSuccessful() && r.body() != null)
+						{
+							JsonObject d = gson.fromJson(r.body().string(), JsonObject.class);
+							if (d != null && d.has("ready") && d.get("ready").getAsBoolean())
+							{
+								configManager.setConfiguration(GROUP, KEY_ACCESS, d.get("accessToken").getAsString());
+								configManager.setConfiguration(GROUP, KEY_REFRESH, d.get("refreshToken").getAsString());
+								configManager.setConfiguration(GROUP, KEY_EMAIL, d.get("email").getAsString());
+								discordPoll = null;
+								onDone.accept(null);
+								return;
+							}
+						}
 					}
-					catch (IOException ignored)
+					catch (Exception ignored)
 					{
-						// Netz-Huckel: einfach weiterpollen
+						// Unlesbare Antwort wie einen Netz-Huckel behandeln
 					}
+					schedulePoll(serverUrl, code, versuch + 1, onDone, gen);
 				}
-				onDone.accept("Discord login timed out - please try again");
-			}
-			catch (InterruptedException e)
-			{
-				Thread.currentThread().interrupt();
-			}
-		}, "rsf-discord-login");
-		poller.setDaemon(true);
-		poller.start();
+			});
+		}, POLL_DELAY_MS, TimeUnit.MILLISECONDS);
 	}
 
 	/** Access-Token per Refresh-Token erneuern (max. 1 Versuch parallel). */

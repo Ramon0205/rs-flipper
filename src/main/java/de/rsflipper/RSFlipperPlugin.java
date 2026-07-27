@@ -237,6 +237,8 @@ public class RSFlipperPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
+		// Laufenden Discord-Device-Flow beenden, sonst pollt er bis zum Timeout weiter.
+		auth.cancelDiscordPoll();
 		keyManager.unregisterKeyListener(prefill);
 		overlayManager.remove(overlay);
 		clientToolbar.removeNavigation(navButton);
@@ -297,6 +299,11 @@ public class RSFlipperPlugin extends Plugin
 		{
 			gameState.onLogin(client.getAccountHash());
 			panel.setStatus("Eingeloggt — synchronisiere …");
+			// Blockliste neu aufbauen: Item-Namen kommen aus dem Client-Cache, der vor
+			// dem Game-Login nicht bereit ist. Ohne diesen Aufruf bleiben dauerhaft die
+			// nackten IDs stehen, wenn das Panel vor dem Einloggen gerendert wurde
+			// (Ramon 2026-07-27: "auf dem zweiten PC stehen die Namen da").
+			panel.refreshBlockedList();
 		}
 	}
 

@@ -98,7 +98,7 @@ public class RSFlipperPanel extends PluginPanel
 			{
 				JLabel none = new JLabel("No blocked items.");
 				none.setForeground(new java.awt.Color(120, 130, 140));
-				none.setFont(none.getFont().deriveFont(12f));
+				none.setFont(none.getFont().deriveFont(13f));
 				blockedListPanel.add(none);
 				blockedListPanel.revalidate();
 				blockedListPanel.repaint();
@@ -113,7 +113,7 @@ public class RSFlipperPanel extends PluginPanel
 					row.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 26));
 					JLabel name = new JLabel(names.getOrDefault(id, "Item " + id));
 					name.setForeground(java.awt.Color.WHITE);
-					name.setFont(name.getFont().deriveFont(12f));
+					name.setFont(name.getFont().deriveFont(13f));
 					// ASCII-only (RuneLite-Pixelfont rendert kein Unicode - bekannte Falle).
 					JButton remove = new JButton("X");
 					remove.setMargin(new java.awt.Insets(0, 6, 0, 6));
@@ -276,7 +276,7 @@ public class RSFlipperPanel extends PluginPanel
 		content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 		content.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-		// Neues Logo (Claude-Design-Projekt, Ramon 2026-07-21): plugin-header.png
+		// Neues Logo (Ramon 2026-07-21): plugin-header.png
 		// als Ressource — ersetzt das frueher gezeichnete Mark+Schriftzug-Logo.
 		java.awt.image.BufferedImage headerImg =
 			net.runelite.client.util.ImageUtil.loadImageResource(RSFlipperPanel.class, "header.png");
@@ -1252,10 +1252,12 @@ public class RSFlipperPanel extends PluginPanel
 		javax.swing.JPasswordField passwordField = new javax.swing.JPasswordField();
 		javax.swing.JButton actionButton = new javax.swing.JButton();
 		// Phase 6: Login ueber Discord (Device-Flow - oeffnet den Browser).
-		javax.swing.JButton discordLoginButton = new javax.swing.JButton("Log in with Discord");
+		javax.swing.JButton discordLoginButton = new javax.swing.JButton("Register / Log in with Discord");
+		// Registrierung ohne Discord: fuehrt auf die Website (Konto anlegen, dann hier einloggen).
+		javax.swing.JButton registerButton = new javax.swing.JButton("Create account on rs-flipper.com");
 		discordLoginButton.setBackground(new java.awt.Color(88, 101, 242));
 		discordLoginButton.setForeground(java.awt.Color.WHITE);
-		for (javax.swing.JComponent c : new javax.swing.JComponent[]{emailField, passwordField, actionButton, discordLoginButton})
+		for (javax.swing.JComponent c : new javax.swing.JComponent[]{emailField, passwordField, actionButton, discordLoginButton, registerButton})
 		{
 			c.setAlignmentX(LEFT_ALIGNMENT);
 			c.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 28));
@@ -1270,6 +1272,7 @@ public class RSFlipperPanel extends PluginPanel
 				emailField.setVisible(!in);
 				passwordField.setVisible(!in);
 				discordLoginButton.setVisible(!in);
+				registerButton.setVisible(!in);
 				actionButton.setText(in ? "Log out" : "Log in");
 				status.setForeground(in ? new java.awt.Color(0, 200, 100) : ColorScheme.LIGHT_GRAY_COLOR);
 				status.setText(in ? "Logged in as " + auth.email() : "Not logged in (rs-flipper.com account)");
@@ -1310,6 +1313,8 @@ public class RSFlipperPanel extends PluginPanel
 			}));
 		});
 		passwordField.addActionListener(e -> actionButton.doClick());
+		registerButton.setToolTipText("Opens rs-flipper.com/signup in your browser");
+		registerButton.addActionListener(e -> net.runelite.client.util.LinkBrowser.browse("https://rs-flipper.com/signup"));
 		discordLoginButton.addActionListener(e -> {
 			discordLoginButton.setEnabled(false);
 			status.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
@@ -1358,6 +1363,8 @@ public class RSFlipperPanel extends PluginPanel
 		box.add(actionButton);
 		box.add(javax.swing.Box.createVerticalStrut(4));
 		box.add(discordLoginButton);
+		box.add(javax.swing.Box.createVerticalStrut(4));
+		box.add(registerButton);
 		render.run();
 		return box;
 	}
