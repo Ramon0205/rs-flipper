@@ -91,11 +91,32 @@ public class AuthService
 		return t == null ? null : "Bearer " + t;
 	}
 
+	/**
+	 * Wird gerufen, wenn der Anmeldezustand von aussen wegfaellt — also NICHT durch
+	 * einen Klick, sondern weil der Refresh-Token abgelaufen/widerrufen ist. Ohne
+	 * diesen Rueckruf blieb die Login-Box auf dem alten Stand stehen: Sie zeigte
+	 * weiter "Log out", versteckte E-Mail-, Passwort- und Discord-Feld, und der
+	 * Knopf war tot (er prueft isLoggedIn() und landet im Login-Zweig mit leeren
+	 * Feldern). Der User kam ohne Client-Neustart nicht mehr heraus.
+	 * (Ramon 2026-08-27, Fund kurz nach der Aufnahme in den Plugin Hub.)
+	 */
+	private volatile Runnable onLoggedOut;
+
+	public void setOnLoggedOut(Runnable r)
+	{
+		this.onLoggedOut = r;
+	}
+
 	public void logout()
 	{
 		configManager.unsetConfiguration(GROUP, KEY_ACCESS);
 		configManager.unsetConfiguration(GROUP, KEY_REFRESH);
 		configManager.unsetConfiguration(GROUP, KEY_EMAIL);
+		Runnable r = onLoggedOut;
+		if (r != null)
+		{
+			r.run();
+		}
 	}
 
 	public void login(String serverUrl, String email, String password, Consumer<String> onDone)
@@ -243,8 +264,20 @@ public class AuthService
 		}, POLL_DELAY_MS, TimeUnit.MILLISECONDS);
 	}
 
-	/** Access-Token per Refresh-Token erneuern (max. 1 Versuch parallel). */
+	/**
+	 * Access-Token per Refresh-Token erneuern (max. 1 Versuch parallel).
+	 *
+	 * onErneuert wird NUR bei Erfolg aufgerufen. Ohne diesen Rueckruf blieb nach dem
+	 * Erneuern alles liegen, bis der normale Heartbeat feuerte — bei ruhiger Markthalle
+	 * bis zu 50 Ticks (~30 s), in denen das Panel "Renewing session ..." zeigte, obwohl
+	 * das neue Token laengst da war (Ramon 2026-07-29).
+	 */
 	public void tryRefresh(String serverUrl)
+	{
+		tryRefresh(serverUrl, null);
+	}
+
+	public void tryRefresh(String serverUrl, Runnable onErneuert)
 	{
 		String refresh = refreshToken();
 		if (refresh == null || refreshing)

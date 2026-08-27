@@ -69,10 +69,12 @@ public class GameStateService
 
 	private long gp;
 	private final List<int[]> inventory = new ArrayList<>(); // [itemId, qty]
-	private boolean dirty = true;
+	// volatile: markUrgent() wird auch aus HTTP-Rueckrufen gesetzt (Token-Refresh),
+	// gelesen wird auf dem Client-Thread — ohne volatile ist die Sichtbarkeit offen.
+	private volatile boolean dirty = true;
 	// Dringend = Offer-Ereignis (Fill/Abschluss): Sync überspringt die Drossel,
 	// damit die nächste Aktion in <1 s statt ~3 s vorgeschlagen wird.
-	private boolean urgent;
+	private volatile boolean urgent;
 
 	@Inject
 	public GameStateService(Client client, com.google.gson.Gson gson)

@@ -73,6 +73,23 @@ public class RSFlipperPanel extends PluginPanel
 		refreshBlockedList();
 	}
 
+	/** Neuzeichnen der Login-Box — gesetzt beim Aufbau, gerufen bei erzwungenem Logout. */
+	private volatile Runnable loginBoxRender;
+
+	/**
+	 * Login-Box neu zeichnen. Noetig, wenn der Anmeldezustand OHNE Klick wegfaellt
+	 * (abgelaufener Refresh-Token): Sonst bleibt "Log out" stehen und die Felder
+	 * versteckt, ohne dass der User da wieder herauskommt.
+	 */
+	void refreshLoginBox()
+	{
+		Runnable r = loginBoxRender;
+		if (r != null)
+		{
+			SwingUtilities.invokeLater(r);
+		}
+	}
+
 	/** Blockliste im Settings-Tab neu aufbauen (nach Block/Unblock/Sync). */
 	void refreshBlockedList()
 	{
@@ -1365,6 +1382,7 @@ public class RSFlipperPanel extends PluginPanel
 		box.add(discordLoginButton);
 		box.add(javax.swing.Box.createVerticalStrut(4));
 		box.add(registerButton);
+		loginBoxRender = render;
 		render.run();
 		return box;
 	}

@@ -152,6 +152,10 @@ public class RSFlipperPlugin extends Plugin
 		// Session startet erst mit der ERSTEN GE-Öffnung (Ramon 2026-07-18) — 0 = wartet.
 		sessionStart = 0;
 		panel.setStatsRefresher(this::refreshStats);
+		// Faellt der Anmeldezustand ohne Klick weg (Refresh-Token abgelaufen), muss die
+		// Login-Box neu gezeichnet werden — sonst steht dort weiter "Log out" und der
+		// User kommt ohne Client-Neustart nicht mehr an die Anmeldefelder.
+		auth.setOnLoggedOut(() -> panel.refreshLoginBox());
 		// Blockliste im Settings-Tab: Item-Namen brauchen den Client-Thread (§1.5-Regel).
 		panel.setItemNameResolver((ids, cb) -> clientThread.invokeLater(() -> {
 			java.util.Map<Integer, String> names = new java.util.HashMap<>();
@@ -239,6 +243,9 @@ public class RSFlipperPlugin extends Plugin
 	{
 		// Laufenden Discord-Device-Flow beenden, sonst pollt er bis zum Timeout weiter.
 		auth.cancelDiscordPoll();
+		// AuthService ist ein Singleton und ueberlebt den Plugin-Neustart: Ohne dieses
+		// Abmelden zeigte der Rueckruf auf ein verworfenes Panel (panel = null unten).
+		auth.setOnLoggedOut(null);
 		keyManager.unregisterKeyListener(prefill);
 		overlayManager.remove(overlay);
 		clientToolbar.removeNavigation(navButton);
@@ -673,9 +680,13 @@ public class RSFlipperPlugin extends Plugin
 			error -> {
 				if ("AUTH_401".equals(error))
 				{
-					// M9: Access-Token abgelaufen -> Refresh; der naechste Sync nutzt das neue Token.
-					auth.tryRefresh(config.serverUrl());
+					// M9: Access-Token abgelaufen -> Refresh. Sobald das neue Token da ist,
+					// SOFORT neu synchronisieren statt auf den Heartbeat zu warten — sonst
+					// stand "Renewing session ..." bis zu 30 s, obwohl laengst alles bereit war.
+					auth.tryRefresh(config.serverUrl(), () -> gameState.markUrgent());
 					panel.setStatus(auth.isLoggedIn() ? "Renewing session ..." : "Please log in (Settings tab)");
+					// Sicherheitsnetz: Zustand und Anzeige koennen hier auseinanderlaufen.
+					panel.refreshLoginBox();
 				}
 				else
 				{

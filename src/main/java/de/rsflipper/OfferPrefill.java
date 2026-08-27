@@ -186,6 +186,14 @@ public class OfferPrefill implements KeyListener
 	@Override
 	public void keyPressed(KeyEvent e)
 	{
+		// Ohne geladenes Spiel gibt es keine Client-Variablen: getVarcStrValue wirft
+		// dann eine NullPointerException, und RuneLite meldet sie als "Uncaught
+		// exception" (Fund 2026-07-29: Tastendruck auf dem Login-Screen). Keine der
+		// Aktionen hier ergibt ausserhalb des Spiels einen Sinn, also frueh raus.
+		if (client.getGameState() != net.runelite.api.GameState.LOGGED_IN)
+		{
+			return;
+		}
 		if (config.passiveMode())
 		{
 			return;
