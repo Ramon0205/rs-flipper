@@ -57,6 +57,10 @@ public class RSFlipperPanel extends PluginPanel
 
 	private volatile ClientSuggestion current;
 	private final javax.swing.JComboBox<String> activityBox = new javax.swing.JComboBox<>(new String[]{"5 min", "30 min", "2 h", "8 h"});
+	/** Risikostufe (Ramon 31.08.) — gehoert ins Panel, nicht nur in RuneLites Config-Dialog:
+	 *  alle uebrigen Einstellungen stehen hier, dort sucht der Nutzer sie auch. */
+	private final javax.swing.JComboBox<String> riskBox = new javax.swing.JComboBox<>(
+		new String[]{"Careful", "Balanced", "Aggressive"});
 	private final javax.swing.JTextField minProfitField = new javax.swing.JTextField();
 	// Free-Tier-UI (Ramon 2026-07-19): Kontingent-Zeile + Opt-in + Reset-Timer + Tier-Label.
 	private final JLabel quotaLabel = new JLabel(" ");
@@ -523,6 +527,14 @@ public class RSFlipperPanel extends PluginPanel
 		}).start();
 
 		// ── Einstellungs-Tab (§4.6: eigener Tab statt im Flip-Tab) ──
+		riskBox.setSelectedIndex(config.riskLevel().ordinal());
+		riskBox.setToolTipText("Careful: smaller, more predictable losses at a lower rate. "
+			+ "Balanced: best all-round result. Aggressive: highest rate, occasional big loss.");
+		riskBox.addActionListener(e -> {
+			configManager.setConfiguration(RSFlipperConfig.GROUP, "riskLevel",
+				RSFlipperConfig.RiskLevel.values()[riskBox.getSelectedIndex()]);
+			onToggleChanged.run();
+		});
 		activityBox.setSelectedIndex(config.targetEtf().ordinal());
 		activityBox.addActionListener(e -> {
 			configManager.setConfiguration(RSFlipperConfig.GROUP, "targetEtf",
@@ -598,11 +610,17 @@ public class RSFlipperPanel extends PluginPanel
 			l.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 			l.setAlignmentX(LEFT_ALIGNMENT);
 		}
-		for (javax.swing.JComponent c : new javax.swing.JComponent[]{activityBox, passiveBox})
+		for (javax.swing.JComponent c : new javax.swing.JComponent[]{activityBox, passiveBox, riskBox})
 		{
 			c.setAlignmentX(LEFT_ALIGNMENT);
 			c.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 28));
 		}
+		JLabel riskCaption = new JLabel("Risk level:");
+		riskCaption.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+		riskCaption.setAlignmentX(LEFT_ALIGNMENT);
+		settingsTab.add(riskCaption);
+		settingsTab.add(riskBox);
+		settingsTab.add(javax.swing.Box.createVerticalStrut(10));
 		settingsTab.add(activityCaption);
 		settingsTab.add(activityBox);
 		settingsTab.add(javax.swing.Box.createVerticalStrut(10));

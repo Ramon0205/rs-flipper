@@ -550,7 +550,7 @@ public class RSFlipperPlugin extends Plugin
 	private void sync()
 	{
 		com.google.gson.JsonObject status = gameState.buildAccountStatus(
-			"aggressiv", // Baseline fuer alle (Ramon 2026-07-19); Profil-Auswahl spaeter ggf. wieder
+			config.riskLevel().wire(), // Nutzer-Risikostufe (Ramon 31.08., ersetzt die feste Baseline)
 			config.activity().wire(),
 			config.blockedItems() == null ? "" : config.blockedItems(),
 			panel.isSellOnly(),

@@ -37,6 +37,46 @@ public interface RSFlipperConfig extends Config
 		}
 	}
 
+	/**
+	 * Risikostufe (Ramon 31.08.). Bis dahin lief jeder still auf "aggressiv" — das war
+	 * ein Vorgabewert, keine Entscheidung. Gemessen im kalibrierten Backtest (50M, 5 Tage):
+	 *   CAREFUL     Groesstverlust -210k | Verlust/Gewinn 18,2 % | 40.419 gp/h
+	 *   BALANCED    Groesstverlust -354k | Verlust/Gewinn 25,5 % | 65.604 gp/h
+	 *   AGGRESSIVE  hoechster Ertrag, dafuer auch mal ein dicker Verlust
+	 * Wichtig fuer die Erwartungshaltung: CAREFUL heisst kleine, planbare Verluste —
+	 * NICHT "keine Verluste". Die Win-Rate liegt dort sogar leicht niedriger.
+	 */
+	enum RiskLevel
+	{
+		CAREFUL("vorsichtig"),
+		BALANCED("ausgewogen"),
+		AGGRESSIVE("aggressiv");
+
+		private final String wire;
+
+		RiskLevel(String wire)
+		{
+			this.wire = wire;
+		}
+
+		public String wire()
+		{
+			return wire;
+		}
+	}
+
+	@ConfigItem(
+		keyName = "riskLevel",
+		name = "Risk level",
+		description = "Careful: smaller, more predictable losses at a lower rate. "
+			+ "Balanced: best all-round result. Aggressive: highest rate, occasional big loss.",
+		position = 1
+	)
+	default RiskLevel riskLevel()
+	{
+		return RiskLevel.BALANCED;
+	}
+
 	enum Activity
 	{
 		OFT("oft"),
