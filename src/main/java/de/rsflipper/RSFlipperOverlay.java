@@ -30,7 +30,7 @@ public class RSFlipperOverlay extends Overlay
 	private static final int INV_GROUP = 149;    // Standard-Inventar
 
 	private static final int SETUP_CHILD = 26;
-	private static final int SETUP_QTY_ALL_BUTTON = 50; // "All" — bei Tranchen-Sells (Ramon 2026-07-18)
+	private static final int SETUP_QTY_ALL_BUTTON = 50; // "All" — bei Tranchen-Sells (2026-07-18)
 	private static final int SETUP_QTY_BUTTON = 51;
 	private static final int SETUP_PRICE_BUTTON = 54;
 	private static final int SETUP_CONFIRM_BUTTON = 58;
@@ -45,10 +45,44 @@ public class RSFlipperOverlay extends Overlay
 	private static final Color ORANGE = new Color(255, 152, 31);
 	private static final Color RED = new Color(231, 76, 60);
 	private static final Color TEAL = new Color(26, 188, 156);
-	/** Dump-Alerts PINK statt Rot (Ramon 2026-07-22): Rot bleibt exklusiv fuer Abort. */
+	/** Dump-Alerts PINK statt Rot (2026-07-22): Rot bleibt exklusiv fuer Abort. */
 	private static final Color DUMP_PINK = new Color(255, 64, 210);
-	/** Break-even-Geduld-Plakette (Ramon 2026-07-21): bewusst NICHT Orange (= Modify). */
+	/** Break-even-Geduld-Plakette (2026-07-21): bewusst NICHT Orange (= Modify). */
 	private static final Color AMBER = new Color(255, 196, 60);
+
+	/** Kantenlaenge des Schloss-Knopfs am leeren Slot. */
+	private static final int LOCK_SIZE = 18;
+	private static final int GE_SLOTS = 8;
+	/**
+	 * Tooltip-Ebene der Markthalle. Beim Hovern eines Slots blendet das Spiel dort
+	 * einen schwebenden Kasten neben dem Zeiger ein ("Buying: Ankou gloves 0 / 2").
+	 * Er liegt NICHT im Slot-Widget - deshalb war er in den Slot-Kindern nie zu
+	 * finden -, sondern in einem eigenen Container (465/33, 181x31 Pixel, Adresse
+	 * per Textsuche im Widget-Baum ermittelt). Unser Overlay liegt darueber und
+	 * verdeckte ihn - am deutlichsten mit dem Schloss-Knopf.
+	 */
+	private static final int GE_TOOLTIP_CHILD = 33;
+
+	/**
+	 * Palette des Schliessen-Knopfs der Markthalle (Sprite 535/536, Pixel fuer Pixel
+	 * ausgemessen 01.09.2026). Der Knopf ist eine klassische Fase: schwarzer Rahmen,
+	 * helle Kante oben/links, dunkle unten/rechts, beige Fuellung. Der Hover-Zustand
+	 * dreht die Fase um — der Knopf sieht eingedrueckt aus.
+	 */
+	private static final Color RS_RAHMEN = new Color(0x000001);
+	private static final Color RS_KANTE_HELL = new Color(0x99845F);
+	private static final Color RS_ECKE_HELL = new Color(0xAA9368);
+	private static final Color RS_KANTE_DUNKEL = new Color(0x3B3326);
+	private static final Color RS_ECKE_DUNKEL = new Color(0x2B2B29);
+	private static final Color RS_FUELLUNG_OBEN = new Color(0x8A785B);
+	private static final Color RS_FUELLUNG_UNTEN = new Color(0x6A5C44);
+	/** Farbe des X im Original — unser Schloss nutzt sie unveraendert. */
+	private static final Color RS_SYMBOL = new Color(0x14110C);
+	/** Geschlossen: dasselbe Dunkel mit Rotstich, bleibt in der Palette. */
+	private static final Color RS_SYMBOL_ZU = new Color(0x4A1410);
+	/** Kontur eines gesperrten Slots - dezent, der Slot ist nicht kaputt. */
+	private static final Color SPERR_KONTUR = new Color(231, 76, 60, 70);
+	private static final BasicStroke SPERR_STRICH = new BasicStroke(1.5f);
 
 	private final Client client;
 	private final GameStateService gameState;
@@ -56,6 +90,10 @@ public class RSFlipperOverlay extends Overlay
 	private final OfferPrefill prefill;
 	private final net.runelite.client.game.ItemManager itemManager;
 	private volatile java.awt.image.BufferedImage coinImage; // einzelne Goldmünze (Item 995)
+	/** Fertige Knopf-Bilder: offen/zu mal normal/Hover. Der Knopf sieht immer
+	 *  gleich aus - einmal malen und danach nur noch kopieren spart je Bild vier
+	 *  Farbverlaeufe, Strichwechsel und das Umschalten der Kantenglaettung. */
+	private final java.awt.image.BufferedImage[] knopfBilder = new java.awt.image.BufferedImage[4];
 
 	/** Fly-up-Profit-Animation (§4.6): realisierte Sell-Profite steigen 2,2 s auf und verblassen. */
 	private static final long POPUP_MS = 3100;
@@ -79,10 +117,14 @@ public class RSFlipperOverlay extends Overlay
 	}
 
 	private final GeSearchSuggestion searchSuggestion;
+	private final SlotLocks slotLocks;
+	/** Haben WIR den Tooltip versteckt? Nur dann geben wir ihn auch wieder frei. */
+	private boolean tooltipSelbstVersteckt;
 
 	@Inject
 	RSFlipperOverlay(Client client, GameStateService gameState, RSFlipperConfig config, OfferPrefill prefill,
-		net.runelite.client.game.ItemManager itemManager, GeSearchSuggestion searchSuggestion)
+		net.runelite.client.game.ItemManager itemManager, GeSearchSuggestion searchSuggestion,
+		SlotLocks slotLocks)
 	{
 		this.client = client;
 		this.gameState = gameState;
@@ -90,6 +132,7 @@ public class RSFlipperOverlay extends Overlay
 		this.prefill = prefill;
 		this.itemManager = itemManager;
 		this.searchSuggestion = searchSuggestion;
+		this.slotLocks = slotLocks;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_WIDGETS);
 	}
@@ -101,10 +144,10 @@ public class RSFlipperOverlay extends Overlay
 		{
 			return null;
 		}
-		// Dump-Suchzeile glatt pulsieren (Ramon 2026-07-19) — per Frame wie der Slot.
+		// Dump-Suchzeile glatt pulsieren (2026-07-19) — per Frame wie der Slot.
 		searchSuggestion.animate();
 		// Hotkey-Hinweis bei offener GE-Zahleneingabe: Zeile im Look der Such-Suggestion,
-		// FEST ueber der Chatbox verankert — kein Springen mehr (Ramon 2026-07-19).
+		// FEST ueber der Chatbox verankert — kein Springen mehr (2026-07-19).
 		int nextY = 40;
 		boolean applyRowDrawn = false;
 		long pending = prefill.getPendingValue();
@@ -118,13 +161,13 @@ public class RSFlipperOverlay extends Overlay
 			}
 		}
 
-		// §4.6 Manuelle-Trade-Hilfe (Ramon 2026-07-18): optimale Kauf-/Verkaufspreise
+		// §4.6 Manuelle-Trade-Hilfe (2026-07-18): optimale Kauf-/Verkaufspreise
 		// fürs offene GE-Setup — auch ohne Engine-Vorschlag (normales Spielen).
 		int quoteSetupItem = client.getVarpValue(VarPlayer.CURRENT_GE_ITEM);
 		if (!applyRowDrawn && quoteSetupItem > 0 && quoteSetupItem == prefill.getQuoteItemId()
 			&& prefill.getQuoteBuy() > 0 && prefill.getQuoteSell() > 0)
 		{
-			// Netto-Marge dazu (Julian-Wunsch 2026-07-22): sell − GE-Steuer − buy,
+			// Netto-Marge dazu (Nutzerwunsch 2026-07-22): sell − GE-Steuer − buy,
 			// gruen/rot — der manuelle Trader sieht sofort, ob sich der Flip lohnt.
 			long qb = prefill.getQuoteBuy();
 			long qs = prefill.getQuoteSell();
@@ -142,6 +185,7 @@ public class RSFlipperOverlay extends Overlay
 		}
 
 		drawSlotHud(g);
+		drawSlotLocks(g);
 		drawProfitPopups(g);
 
 		ClientSuggestion s = gameState.getCurrentSuggestion();
@@ -149,7 +193,7 @@ public class RSFlipperOverlay extends Overlay
 		{
 			return null;
 		}
-		// M12a: Dump-Alerts pulsieren ROT (Ramon 2026-07-19) — maximale Aufmerksamkeit.
+		// M12a: Dump-Alerts pulsieren ROT (2026-07-19) — maximale Aufmerksamkeit.
 		boolean dump = s.isDumpAlert();
 
 		// Sell: Item im Inventar hervorheben — Klick startet das Sell-Offer.
@@ -159,7 +203,7 @@ public class RSFlipperOverlay extends Overlay
 		}
 
 		// Offer-SETUP-Screen: Menge/Preis/Bestätigen gezielt markieren (orange = ändern nötig).
-		// Craw's-bow-Fund (Ramon 2026-07-22): NUR wenn wirklich ein Setup offen ist
+		// Craw's-bow-Fund (2026-07-22): NUR wenn wirklich ein Setup offen ist
 		// (Varbit 4439) — das Widget allein meldet sich auch in der Offer-Ansicht als
 		// sichtbar, und die Setup-Varbits stehen dort auf 0 -> Phantom-Mengen-Highlight
 		// beim Modify-Klick auf den Slot.
@@ -170,7 +214,7 @@ public class RSFlipperOverlay extends Overlay
 		{
 			int curQty = client.getVarbitValue(VARBIT_SETUP_QUANTITY);
 			int curPrice = client.getVarbitValue(VARBIT_SETUP_PRICE);
-			// EINE Regel (Ramon 2026-07-22, ersetzt die isModify-Sonderbehandlung):
+			// EINE Regel (2026-07-22, ersetzt die isModify-Sonderbehandlung):
 			// Menge markieren NUR, wenn die Soll-Menge von der bereits im Setup
 			// stehenden abweicht — uebernommene Modify-Mengen leuchten nicht mehr,
 			// gewollte Mengen-Aenderungen schon (und Enter fuellt dann, s. OfferPrefill).
@@ -254,18 +298,18 @@ public class RSFlipperOverlay extends Overlay
 		return null;
 	}
 
-	/** Apply-Zeile bei offener Zahleneingabe (Ramon 2026-07-19): exakt der Look der
+	/** Apply-Zeile bei offener Zahleneingabe (2026-07-19): exakt der Look der
 	 *  Such-Suggestion — dunkler Emerald-Grund, gruene Kontur, "RS-Flipper" bold in
 	 *  Markengruen, Wert weiss, "[ ENTER ]  apply" grau rechts. Fest ueber der Chatbox. */
 	private void drawApplyRow(Graphics2D g, long pending, Rectangle cb)
 	{
 		// Unter der Eingabezeile — ungefaehr auf der Hoehe der Such-Suggestion-Zeile,
-		// damit alles an derselben Stelle erscheint (Ramon 2026-07-19).
+		// damit alles an derselben Stelle erscheint (2026-07-19).
 		int h = 24;
 		int x = cb.x + 6;
 		int w = cb.width - 12;
 		// OBERHALB der Frage-Zeile ("Set a price ..."), oben in der Box — gleiche
-		// Hoehe wie die Item-Suggestion-Zeile der GE-Suche (Ramon 2026-07-19).
+		// Hoehe wie die Item-Suggestion-Zeile der GE-Suche (2026-07-19).
 		int y = cb.y + 12;
 		Widget title = client.getWidget(ComponentID.CHATBOX_TITLE);
 		if (title != null && !title.isHidden())
@@ -301,7 +345,7 @@ public class RSFlipperOverlay extends Overlay
 		g.setColor(new Color(154, 165, 160));
 		g.drawString(key, x + w - kw - 8, baseline);
 
-		// Preis-Eingabe: Optimal-Quote mittig in der Zeile statt als eigene Box (Ramon 2026-07-19).
+		// Preis-Eingabe: Optimal-Quote mittig in der Zeile statt als eigene Box (2026-07-19).
 		boolean priceInput = title != null && title.getText() != null
 			&& title.getText().startsWith("Set a price");
 		int setupItem = client.getVarpValue(VarPlayer.CURRENT_GE_ITEM);
@@ -316,13 +360,99 @@ public class RSFlipperOverlay extends Overlay
 		}
 	}
 
+	/** Erster freier Slot fuer einen neuen Kauf — gesperrte bleiben aussen vor
+	 *  (01.09.2026: sonst leuchtete ausgerechnet der abgeschlossene Slot auf). */
+	/**
+	 * Blendet den schwebenden Tooltip der Markthalle aus (01.09.2026: gar kein
+	 * Hover-Text, weder unserer noch der native).
+	 *
+	 * Aufgerufen aus BeforeRender, NICHT aus dem Overlay-Render: Overlays zeichnen
+	 * erst, nachdem die Widgets gemalt sind - ein dort gesetztes setHidden kaeme
+	 * immer ein Bild zu spaet, und das Spiel setzt die Ebene vor dem naechsten
+	 * Zeichnen wieder sichtbar.
+	 */
+	void versteckeGeTooltip()
+	{
+		Widget tooltip = client.getWidget(GE_GROUP_ID, GE_TOOLTIP_CHILD);
+		if (tooltip == null)
+		{
+			return;
+		}
+		// Haeufigster Fall, und er laeuft je Bild: Der Tooltip ist unsichtbar und wir
+		// haben ihn nicht versteckt - dann gibt es nichts zu entscheiden und die
+		// Slot-Suche kann entfallen.
+		if (tooltip.isHidden() && !tooltipSelbstVersteckt)
+		{
+			return;
+		}
+		if (mausAufBelegtemSlot())
+		{
+			if (!tooltip.isHidden())
+			{
+				tooltip.setHidden(true);
+				tooltipSelbstVersteckt = true;
+			}
+		}
+		else if (tooltipSelbstVersteckt)
+		{
+			// Nur zuruecknehmen, was wir selbst gesetzt haben - danach fuehrt wieder
+			// das Spiel Regie ueber die Sichtbarkeit.
+			tooltip.setHidden(false);
+			tooltipSelbstVersteckt = false;
+		}
+	}
+
+	/**
+	 * Steht der Zeiger auf einem Slot mit laufender Order? Nur dort stoert der
+	 * Tooltip, denn nur dort zeichnen wir selbst etwas hin. Ueber einem leeren Slot
+	 * gehoert er dem Spiel - dort erklaert er die Knoepfe zum Anlegen einer Kauf-
+	 * oder Verkaufsorder (01.09.2026).
+	 */
+	private boolean mausAufBelegtemSlot()
+	{
+		java.awt.Point maus = mausPosition();
+		net.runelite.api.GrandExchangeOffer[] offers = client.getGrandExchangeOffers();
+		if (maus == null || offers == null)
+		{
+			return false;
+		}
+		for (int slot = 0; slot < GE_SLOTS && slot < offers.length; slot++)
+		{
+			Widget w = client.getWidget(GE_GROUP_ID, config.geSlotChildBase() + slot);
+			if (w == null || w.isHidden())
+			{
+				continue;
+			}
+			Rectangle b = w.getBounds();
+			if (b == null || !b.contains(maus))
+			{
+				continue;
+			}
+			net.runelite.api.GrandExchangeOffer o = offers[slot];
+			return o != null && o.getState() != net.runelite.api.GrandExchangeOfferState.EMPTY;
+		}
+		return false;
+	}
+
+	/** Mauszeiger in Canvas-Koordinaten - dieselbe Ebene wie Widget-Rechtecke. */
+	private java.awt.Point mausPosition()
+	{
+		net.runelite.api.Point p = client.getMouseCanvasPosition();
+		return p == null ? null : new java.awt.Point(p.getX(), p.getY());
+	}
+
 	private int firstEmptySlot()
 	{
 		net.runelite.api.GrandExchangeOffer[] offers = client.getGrandExchangeOffers();
 		if (offers != null)
 		{
+			java.util.Set<Integer> gesperrt = slotLocks.locked();
 			for (int i = 0; i < offers.length; i++)
 			{
+				if (gesperrt.contains(i))
+				{
+					continue;
+				}
 				if (offers[i] == null || offers[i].getState() == net.runelite.api.GrandExchangeOfferState.EMPTY)
 				{
 					return i;
@@ -333,7 +463,7 @@ public class RSFlipperOverlay extends Overlay
 	}
 
 	/** Gesamtstückzahl eines Items im Inventar — Tranchen-Einzelslots UND Zertifikate
-	 *  (noted, eigene ID) zählen zusammen (Ramon 2026-07-18). */
+	 *  (noted, eigene ID) zählen zusammen (2026-07-18). */
 	private int inventoryCount(int itemId)
 	{
 		net.runelite.api.ItemContainer inv = client.getItemContainer(net.runelite.api.InventoryID.INVENTORY);
@@ -385,7 +515,7 @@ public class RSFlipperOverlay extends Overlay
 				continue;
 			}
 			// Zertifikate (noted) tragen eine eigene Item-ID → auf das echte Item
-			// normalisieren, sonst bleibt der Stack unmarkiert (Ramon 2026-07-18).
+			// normalisieren, sonst bleibt der Stack unmarkiert (2026-07-18).
 			int id = item.getItemId();
 			if (id > 0)
 			{
@@ -411,7 +541,7 @@ public class RSFlipperOverlay extends Overlay
 		}
 	}
 
-	/** §4.6 Slot-HUD (Ramon 2026-07-18): Profit-Plakette auf dem Fortschrittsbalken
+	/** §4.6 Slot-HUD (2026-07-18): Profit-Plakette auf dem Fortschrittsbalken
 	 *  (dunkler Hintergrund → lesbar auf grün/gelb/rot), Order-Alter links und
 	 *  ETA-Vorhersage rechts der Buy/Sell-Zeile. */
 	private void drawSlotHud(Graphics2D g)
@@ -431,7 +561,7 @@ public class RSFlipperOverlay extends Overlay
 			Rectangle b = slot.getBounds();
 			GameStateService.SlotHud info = e.getValue();
 
-			// Layout (Ramon 2026-07-18): Alter/ETA auf der oberen Buy/Sell-Leiste;
+			// Layout (2026-07-18): Alter/ETA auf der oberen Buy/Sell-Leiste;
 			// Profit-Plakette auf dem FORTSCHRITTSBALKEN — dem schmalen Streifen
 			// direkt ÜBER dem Preis am Slot-Boden (nicht die obere Leiste!).
 			int lineY = b.y + 16;
@@ -449,8 +579,8 @@ public class RSFlipperOverlay extends Overlay
 				java.awt.FontMetrics fm = g.getFontMetrics();
 				int baseline = rectY + (rectH + fm.getAscent() - fm.getDescent()) / 2;
 				// Kauforders: GELB = prospektiver Profit (liegt auf dem Tisch, noch nicht
-				// kurz bevor); Sells: grün/rot wie gehabt (Ramon 2026-07-18).
-				g.setColor(info.buySide ? new Color(255, 240, 0) : (p >= 0 ? GREEN : RED)); // sattes Gelb (Ramon)
+				// kurz bevor); Sells: grün/rot wie gehabt (2026-07-18).
+				g.setColor(info.buySide ? new Color(255, 240, 0) : (p >= 0 ? GREEN : RED)); // sattes Gelb
 				g.drawString(text, x, baseline);
 			}
 
@@ -459,7 +589,7 @@ public class RSFlipperOverlay extends Overlay
 			g.drawString(age, b.x + 6, lineY + 1);
 			g.setColor(new Color(200, 200, 200));
 			g.drawString(age, b.x + 5, lineY);
-			// Break-even-Geduld (Ramon 2026-07-21): Der Slot HAELT bewusst — ohne die
+			// Break-even-Geduld (2026-07-21): Der Slot HAELT bewusst — ohne die
 			// Plakette wirkt er haengengeblieben. "hold 32m" = Regel aktiv, Restzeit
 			// zaehlt live herunter; die ETA entfaellt solange (sie gilt fuer den
 			// Markt-Anker, nicht fuer den gehaltenen Break-even-Preis).
@@ -487,6 +617,146 @@ public class RSFlipperOverlay extends Overlay
 		}
 	}
 
+	/**
+	 * Vorhaengeschloss am leeren GE-Slot (01.09.2026): offen = der Slot wird
+	 * betreut, geschlossen = das Plugin laesst ihn in Ruhe. Nur an LEEREN Slots —
+	 * liegt eine Kauf- oder Verkaufsorder drin, waere der Knopf ohne Wirkung und
+	 * wuerde nur die Order-Anzeige verdecken.
+	 *
+	 * Der Knopf sitzt rechts oben, auf der Hoehe des "Empty"-Schriftzugs. Die
+	 * Trefferflaeche meldet das Overlay an {@link SlotLocks} — der Klick wird dort
+	 * ausgewertet, ohne den Client anzufassen.
+	 */
+	private void drawSlotLocks(Graphics2D g)
+	{
+		Widget geMain = client.getWidget(GE_GROUP_ID, config.geSlotChildBase());
+		if (geMain == null || geMain.isHidden())
+		{
+			slotLocks.clearHitBoxes();
+			return;
+		}
+		net.runelite.api.GrandExchangeOffer[] offers = client.getGrandExchangeOffers();
+		java.util.Set<Integer> gesperrt = slotLocks.locked();
+		java.awt.Point maus = mausPosition();
+
+		for (int slot = 0; slot < GE_SLOTS; slot++)
+		{
+			Widget w = client.getWidget(GE_GROUP_ID, config.geSlotChildBase() + slot);
+			if (w == null || w.isHidden())
+			{
+				slotLocks.clearHitBox(slot);
+				continue;
+			}
+			boolean belegt = offers != null && slot < offers.length && offers[slot] != null
+				&& offers[slot].getState() != net.runelite.api.GrandExchangeOfferState.EMPTY;
+			if (belegt)
+			{
+				slotLocks.clearHitBox(slot);
+				continue;
+			}
+			Rectangle b = w.getBounds();
+			if (b == null || b.width <= 0)
+			{
+				slotLocks.clearHitBox(slot);
+				continue;
+			}
+			boolean zu = gesperrt.contains(slot);
+			Rectangle hit = new Rectangle(b.x + b.width - LOCK_SIZE - 4, b.y + 3, LOCK_SIZE, LOCK_SIZE);
+			slotLocks.setHitBox(slot, hit);
+
+			if (zu)
+			{
+				// Bewusst dezent: der Slot ist nicht kaputt, er ist nur ausgeklammert.
+				g.setColor(SPERR_KONTUR);
+				g.setStroke(SPERR_STRICH);
+				g.drawRoundRect(b.x, b.y, b.width, b.height, 6, 6);
+			}
+			drawLockButton(g, hit, zu, maus != null && hit.contains(maus));
+		}
+	}
+
+	/**
+	 * Knopf im Stil des Markthallen-Schliessen-Knopfs, nur mit Schloss statt X
+	 * (01.09.2026). Bewusst OHNE Kantenglaettung und aus ganzen Rechtecken
+	 * gebaut: Das Original ist Pixelgrafik, ein weich gezeichnetes Symbol faellt
+	 * daneben sofort auf.
+	 */
+	private void drawLockButton(Graphics2D g, Rectangle r, boolean geschlossen, boolean hover)
+	{
+		int stand = (geschlossen ? 1 : 0) | (hover ? 2 : 0);
+		java.awt.image.BufferedImage img = knopfBilder[stand];
+		if (img == null)
+		{
+			img = baueKnopf(r.width, r.height, geschlossen, hover);
+			knopfBilder[stand] = img;
+		}
+		g.drawImage(img, r.x, r.y, null);
+	}
+
+	private java.awt.image.BufferedImage baueKnopf(int w, int h, boolean geschlossen, boolean hover)
+	{
+		java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(
+			w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = img.createGraphics();
+		g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
+
+		g.setColor(RS_RAHMEN);
+		g.fillRect(0, 0, w, h);
+
+		// Fuellung mit dem leichten Verlauf des Originals.
+		g.setPaint(new java.awt.GradientPaint(1, 1, RS_FUELLUNG_OBEN, w - 1, h - 1, RS_FUELLUNG_UNTEN));
+		g.fillRect(1, 1, w - 2, h - 2);
+		g.setPaint(null);
+
+		// Fase. Beim Hover getauscht — genau das macht Sprite 536.
+		g.setColor(hover ? RS_KANTE_DUNKEL : RS_KANTE_HELL);
+		g.fillRect(1, 1, w - 2, 1);
+		g.fillRect(1, 1, 1, h - 2);
+		g.setColor(hover ? RS_KANTE_HELL : RS_KANTE_DUNKEL);
+		g.fillRect(1, h - 2, w - 2, 1);
+		g.fillRect(w - 2, 1, 1, h - 2);
+		g.setColor(hover ? RS_ECKE_DUNKEL : RS_ECKE_HELL);
+		g.fillRect(1, 1, 1, 1);
+		g.setColor(hover ? RS_ECKE_HELL : RS_ECKE_DUNKEL);
+		g.fillRect(w - 2, h - 2, 1, 1);
+
+		drawLockGlyph(g, 0, 0, w, h, geschlossen);
+		g.dispose();
+		return img;
+	}
+
+	/**
+	 * Schloss-Symbol mittig auf den Knopf. Die Vorlagen sind schwarze Silhouetten;
+	 * eingefaerbt wird ueber den Alphakanal, damit ein Bild fuer jede Farbe reicht.
+	 */
+	private void drawLockGlyph(Graphics2D g, int x, int y, int w, int h, boolean geschlossen)
+	{
+		// Laeuft nur beim Bauen der vier Knopf-Bilder, nicht je Bild - daher ohne
+		// eigenen Zwischenspeicher.
+		java.awt.image.BufferedImage img = einfaerben(
+			net.runelite.client.util.ImageUtil.loadImageResource(RSFlipperOverlay.class,
+				geschlossen ? "lock-closed.png" : "lock-open.png"),
+			geschlossen ? RS_SYMBOL_ZU : RS_SYMBOL);
+		g.drawImage(img, x + (w - img.getWidth()) / 2, y + (h - img.getHeight()) / 2, null);
+	}
+
+	/** Alphakanal behalten, Farbe ersetzen - so faerbt man eine Silhouette um. */
+	private static java.awt.image.BufferedImage einfaerben(java.awt.image.BufferedImage src, Color c)
+	{
+		java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(
+			src.getWidth(), src.getHeight(), java.awt.image.BufferedImage.TYPE_INT_ARGB);
+		int rgb = c.getRGB() & 0x00FFFFFF;
+		for (int y = 0; y < src.getHeight(); y++)
+		{
+			for (int x = 0; x < src.getWidth(); x++)
+			{
+				int alpha = src.getRGB(x, y) >>> 24;
+				out.setRGB(x, y, (alpha << 24) | rgb);
+			}
+		}
+		return out;
+	}
+
 	/** GE-Steuer je Stueck (SPEC §1.4): 2 % auf den Verkaufspreis, abgerundet,
 	 *  Cap 5M gp, steuerfrei unter 50 gp — identisch zur Server-Formel. */
 	private static long geTaxPerItem(long sellPrice)
@@ -498,7 +768,7 @@ public class RSFlipperOverlay extends Overlay
 		return Math.min((long) Math.floor(sellPrice * 0.02), 5_000_000L);
 	}
 
-	/** Hochzählender Timer im mm:ss-Format (Ramon 2026-07-18). */
+	/** Hochzählender Timer im mm:ss-Format (2026-07-18). */
 	private static String formatClock(long sec)
 	{
 		return String.format("%d:%02d", sec / 60, sec % 60);
@@ -544,7 +814,7 @@ public class RSFlipperOverlay extends Overlay
 			String text = (p.profit >= 0 ? "+" : "-") + formatGp(Math.abs(p.profit));
 			Color c = p.profit >= 0 ? GREEN : RED;
 			java.awt.Font base = g.getFont();
-			g.setFont(base.deriveFont(java.awt.Font.BOLD, 25f * pop)); // 1,5x (Ramon)
+			g.setFont(base.deriveFont(java.awt.Font.BOLD, 25f * pop)); // 1,5x
 			java.awt.FontMetrics fm = g.getFontMetrics();
 			int tw = fm.stringWidth(text);
 

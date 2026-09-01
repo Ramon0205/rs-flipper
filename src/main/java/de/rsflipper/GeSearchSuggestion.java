@@ -27,7 +27,7 @@ public class GeSearchSuggestion
 	private static final int BRAND_GREEN = 0x10b981;  // Marken-Emerald (Website/Logo)
 	private static final int BG_DARK = 0x0e1a15;      // dunkler Emerald-Grund
 	private static final int HINT_GRAY = 0x9aa5a0;
-	private static final int PINK = 0xff40d2;         // Dump-Alert (pink statt rot - rot = Abort, Ramon 2026-07-22)
+	private static final int PINK = 0xff40d2;         // Dump-Alert (pink statt rot - rot = Abort, 2026-07-22)
 	private static final int PINK_BG = 0x6e1f5c;      // pinker Zeilen-Grund im Blink-Hoch
 
 	private final Client client;
@@ -102,7 +102,7 @@ public class GeSearchSuggestion
 		float p = (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * t)); // 0..1
 		rect.setOpacity((int) (150 - 95 * p));    // 150 (dunkel) -> 55 (kraeftig)
 		outline.setOpacity((int) (140 - 120 * p)); // 140 -> 20
-		// KEIN revalidate() hier (Julian-Lag-Fund 2026-07-22): revalidate erzwingt eine
+		// KEIN revalidate() hier (Lag-Fund 2026-07-22): revalidate erzwingt eine
 		// Layout-Neuberechnung des Chatbox-Baums — pro Frame x2 brach die Framerate ein,
 		// sobald der Dump-Alert pulsierte. Opacity ist eine reine Render-Eigenschaft und
 		// wird ohne revalidate uebernommen; Layout-Aenderungen macht nur inject().
@@ -150,7 +150,7 @@ public class GeSearchSuggestion
 		int w = results.getWidth();
 
 		// M12a Dump-Alert: rote Zeile statt Emerald-Look; die Farb-INTENSITAET pulsiert
-		// per Frame ueber animate() (Ramon 2026-07-19) — genau wie der Slot im Overlay.
+		// per Frame ueber animate() (2026-07-19) — genau wie der Slot im Overlay.
 		boolean dump = s.isDumpAlert();
 		final int bgFill = dump ? PINK_BG : BG_DARK;
 		int outlineColor = dump ? PINK : BRAND_GREEN;
@@ -212,7 +212,7 @@ public class GeSearchSuggestion
 		name.setOriginalHeight(15);
 		name.revalidate();
 
-		// Hinweis: ENTER waehlt den Vorschlag direkt aus (Spiel-Listener, Ramon 2026-07-19).
+		// Hinweis: ENTER waehlt den Vorschlag direkt aus (Spiel-Listener, 2026-07-19).
 		hint.setText("[ ENTER ]  select");
 		hint.setFontId(FontID.PLAIN_11);
 		hint.setTextColor(HINT_GRAY);

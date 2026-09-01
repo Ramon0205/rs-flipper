@@ -26,11 +26,11 @@ public class ClientSuggestion
 	long[] graphLow;
 	/** Score-Erklärung (§5 "why") als Rohobjekt für die Warum-Anzeige (null = keine). */
 	JsonObject why;
-	/** Teil eines Modify-Flows (Pin): Anzeige bleibt 'Change Order' in Orange (Ramon 2026-07-18). */
+	/** Teil eines Modify-Flows (Pin): Anzeige bleibt 'Change Order' in Orange (2026-07-18). */
 	boolean modifyFlow;
 	/** Ziel-Fill-Zeit wurde gelockert (kein Item im Zeitfenster) — kleiner Hinweis in der Box. */
 	boolean zeitGelockert;
-	/** Realisierter Profit der fertigen Sell-Order beim Collect (Ramon 2026-07-19); Long.MIN_VALUE = unbekannt. */
+	/** Realisierter Profit der fertigen Sell-Order beim Collect (2026-07-19); Long.MIN_VALUE = unbekannt. */
 	long collectProfit;
 
 	public static ClientSuggestion from(JsonObject o)

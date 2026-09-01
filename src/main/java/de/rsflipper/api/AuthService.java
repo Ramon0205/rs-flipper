@@ -98,7 +98,7 @@ public class AuthService
 	 * weiter "Log out", versteckte E-Mail-, Passwort- und Discord-Feld, und der
 	 * Knopf war tot (er prueft isLoggedIn() und landet im Login-Zweig mit leeren
 	 * Feldern). Der User kam ohne Client-Neustart nicht mehr heraus.
-	 * (Ramon 2026-08-27, Fund kurz nach der Aufnahme in den Plugin Hub.)
+	 * (2026-08-27, Fund kurz nach der Aufnahme in den Plugin Hub.)
 	 */
 	private volatile Runnable onLoggedOut;
 
@@ -270,7 +270,7 @@ public class AuthService
 	 * onErneuert wird NUR bei Erfolg aufgerufen. Ohne diesen Rueckruf blieb nach dem
 	 * Erneuern alles liegen, bis der normale Heartbeat feuerte — bei ruhiger Markthalle
 	 * bis zu 50 Ticks (~30 s), in denen das Panel "Renewing session ..." zeigte, obwohl
-	 * das neue Token laengst da war (Ramon 2026-07-29).
+	 * das neue Token laengst da war (2026-07-29).
 	 */
 	public void tryRefresh(String serverUrl)
 	{

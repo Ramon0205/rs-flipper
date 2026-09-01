@@ -38,7 +38,7 @@ public interface RSFlipperConfig extends Config
 	}
 
 	/**
-	 * Risikostufe (Ramon 31.08.). Bis dahin lief jeder still auf "aggressiv" — das war
+	 * Risikostufe (31.08.). Bis dahin lief jeder still auf "aggressiv" — das war
 	 * ein Vorgabewert, keine Entscheidung. Gemessen im kalibrierten Backtest (50M, 5 Tage):
 	 *   CAREFUL     Groesstverlust -210k | Verlust/Gewinn 18,2 % | 40.419 gp/h
 	 *   BALANCED    Groesstverlust -354k | Verlust/Gewinn 25,5 % | 65.604 gp/h
@@ -77,25 +77,6 @@ public interface RSFlipperConfig extends Config
 		return RiskLevel.BALANCED;
 	}
 
-	enum Activity
-	{
-		OFT("oft"),
-		NORMAL("normal"),
-		SELTEN("selten");
-
-		private final String wire;
-
-		Activity(String wire)
-		{
-			this.wire = wire;
-		}
-
-		public String wire()
-		{
-			return wire;
-		}
-	}
-
 	@ConfigItem(keyName = "serverUrl", name = "Server URL", description = "Address of the RS-Flipper server", position = 0)
 	default String serverUrl()
 	{
@@ -109,7 +90,7 @@ public interface RSFlipperConfig extends Config
 		return false;
 	}
 
-	// M12a Dump-Alerts (Ramon 2026-07-19): Schwelle in gp, 0 = Feature aus (bewusst Opt-in).
+	// M12a Dump-Alerts (2026-07-19): Schwelle in gp, 0 = Feature aus (bewusst Opt-in).
 	@ConfigItem(keyName = "dumpMinProfit", name = "Dump alert min profit", description = "Minimum predicted profit for dump alerts; 0 = off", hidden = true)
 	default int dumpMinProfit()
 	{
@@ -123,7 +104,7 @@ public interface RSFlipperConfig extends Config
 		return true;
 	}
 
-	// Phase 3 (Ramon 2026-07-20): Sync an/aus ist bewusst LOKAL je Client — aus =
+	// Phase 3 (2026-07-20): Sync an/aus ist bewusst LOKAL je Client — aus =
 	// dieser Client behaelt eigene Werte (zwei Chars, zwei Setups).
 	@ConfigItem(keyName = "syncSettings", name = "Sync settings across devices", description = "Keep timeframe, min profit, blocklist and dump settings in sync via your account", hidden = true)
 	default boolean syncSettings()
@@ -131,10 +112,28 @@ public interface RSFlipperConfig extends Config
 		return true;
 	}
 
-	@ConfigItem(keyName = "targetEtf", name = "Target time to fill", description = "Suggest flips with an estimated fill time within this window (5m/30m/2h/8h)", position = 2)
+	/**
+	 * Gesperrte Slots (1-basiert, z. B. "7,8"). Nur noch Speicher: Bedient wird die
+	 * Sperre seit 01.09.2026 ueber das Vorhaengeschloss am leeren Slot selbst -
+	 * das Textfeld im Dialog war dafuer der falsche Ort.
+	 */
+	@ConfigItem(
+		keyName = "ignoredSlots",
+		name = "Ignored GE slots",
+		description = "Managed with the padlock on each empty GE slot",
+		hidden = true
+	)
+	default String ignoredSlots()
+	{
+		return "";
+	}
+
+	@ConfigItem(keyName = "targetEtf", name = "Preferred fill time",
+		description = "Suggestions aim for this speed. Much faster flips are filtered out unless nothing else is available.",
+		position = 2)
 	default Timeframe targetEtf()
 	{
-		// Voreinstellung 5 min (Ramon 2026-07-19): neue User (= Free) starten mit dem
+		// Voreinstellung 5 min (2026-07-19): neue User (= Free) starten mit dem
 		// schnellsten Fenster — laengere Fenster laufen im Free-Tier schnell leer.
 		return Timeframe.M5;
 	}
@@ -142,14 +141,8 @@ public interface RSFlipperConfig extends Config
 	@ConfigItem(keyName = "minProfitGp", name = "Minimum profit (gp)", description = "Hard floor: only flips promising at least this profit are suggested (0 = off)", position = 3)
 	default int minProfitGp()
 	{
-		// Voreinstellung 5k (Ramon 2026-07-19) — realistisch fuers Free-Tier.
+		// Voreinstellung 5k (2026-07-19) — realistisch fuers Free-Tier.
 		return 5000;
-	}
-
-	@ConfigItem(keyName = "activity", name = "Offer adjustment (legacy)", description = "Superseded by Target time to fill", position = 91)
-	default Activity activity()
-	{
-		return Activity.NORMAL;
 	}
 
 	@ConfigItem(keyName = "blockedItems", name = "Blocked items", description = "Item IDs, comma-separated - never suggested", position = 3)
@@ -167,7 +160,7 @@ public interface RSFlipperConfig extends Config
 	@ConfigItem(keyName = "fillHotkey", name = "Apply", description = "Key that applies the suggested value (quantity/price) to the open GE input - 1 keypress = 1 action", position = 5)
 	default net.runelite.client.config.Keybind fillHotkey()
 	{
-		// Standard: ENTER (Ramon 2026-07-19) — 2x Enter = uebernehmen + bestaetigen.
+		// Standard: ENTER (2026-07-19) — 2x Enter = uebernehmen + bestaetigen.
 		// '#' funktioniert zusaetzlich fest verdrahtet; umbelegbar bleibt der Keybind.
 		return new net.runelite.client.config.Keybind(java.awt.event.KeyEvent.VK_ENTER, 0);
 	}
@@ -182,7 +175,7 @@ public interface RSFlipperConfig extends Config
 	@ConfigItem(keyName = "chartHotkey", name = "Chart hotkey", description = "Key that opens the suggested item's price chart on rs-flipper.com (only while the GE is open)", position = 7)
 	default net.runelite.client.config.Keybind chartHotkey()
 	{
-		// Standard: '-' (Ramon 2026-07-22) — wirkt nur bei offener GE, tippt dort nie in den Chat.
+		// Standard: '-' (2026-07-22) — wirkt nur bei offener GE, tippt dort nie in den Chat.
 		return new net.runelite.client.config.Keybind(java.awt.event.KeyEvent.VK_MINUS, 0);
 	}
 

@@ -72,6 +72,12 @@ public class RSFlipperPlugin extends Plugin
 	private net.runelite.client.input.KeyManager keyManager;
 
 	@Inject
+	private net.runelite.client.input.MouseManager mouseManager;
+
+	@Inject
+	private SlotLocks slotLocks;
+
+	@Inject
 	private ApiClient api;
 
 	@Inject
@@ -149,7 +155,7 @@ public class RSFlipperPlugin extends Plugin
 	protected void startUp()
 	{
 		panel = new RSFlipperPanel(this::onSkip, this::onBlock, gameState::markDirty, config, configManager, auth, () -> config.serverUrl());
-		// Session startet erst mit der ERSTEN GE-Öffnung (Ramon 2026-07-18) — 0 = wartet.
+		// Session startet erst mit der ERSTEN GE-Öffnung (2026-07-18) — 0 = wartet.
 		sessionStart = 0;
 		panel.setStatsRefresher(this::refreshStats);
 		// Faellt der Anmeldezustand ohne Klick weg (Refresh-Token abgelaufen), muss die
@@ -192,7 +198,7 @@ public class RSFlipperPlugin extends Plugin
 			com.google.gson.JsonObject ctx = new com.google.gson.JsonObject();
 			ctx.addProperty("source", "plugin");
 			// RSN nur mitschicken, wenn wirklich einer da ist — Feedback geht auch
-			// komplett ohne Login/Charakter (Ramon 2026-07-20), dann bleibt er leer.
+			// komplett ohne Login/Charakter (2026-07-20), dann bleibt er leer.
 			if (client.getLocalPlayer() != null && client.getLocalPlayer().getName() != null)
 			{
 				ctx.addProperty("rsn", client.getLocalPlayer().getName());
@@ -212,6 +218,12 @@ public class RSFlipperPlugin extends Plugin
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(overlay);
 		keyManager.registerKeyListener(prefill);
+		mouseManager.registerMouseListener(slotLocks);
+		// Sperre wirkt sofort: Der naechste Sync soll nicht bis zum Herzschlag warten.
+		slotLocks.setOnChanged(() -> {
+			gameState.markUrgent();
+			gameState.markDirty();
+		});
 		prefill.setSkipHandler(() -> {
 			ClientSuggestion s = gameState.getCurrentSuggestion();
 			if (s != null)
@@ -219,9 +231,10 @@ public class RSFlipperPlugin extends Plugin
 				onSkip(s);
 			}
 		});
-		// Build-Kennung (Ramon 2026-07-22): publish-testclient.sh legt beim Bauen eine
+		prefill.setNothingToSkipHandler(() -> panel.setStatus("Nothing to skip - no active suggestion"));
+		// Build-Kennung (2026-07-22): publish-testclient.sh legt beim Bauen eine
 		// build.txt in die Ressourcen — so ist am Log UND im Panel eindeutig pruefbar,
-		// welcher Stand wirklich laeuft (Julian-Fund: zwei Publishes, ein Dateiname).
+		// welcher Stand wirklich laeuft (Fund: zwei Publishes, ein Dateiname).
 		// Dev-Builds aus dem Quelltext haben keine Datei -> "dev".
 		String build = "dev";
 		try (java.io.InputStream in = RSFlipperPlugin.class.getResourceAsStream("build.txt"))
@@ -247,6 +260,8 @@ public class RSFlipperPlugin extends Plugin
 		// Abmelden zeigte der Rueckruf auf ein verworfenes Panel (panel = null unten).
 		auth.setOnLoggedOut(null);
 		keyManager.unregisterKeyListener(prefill);
+		mouseManager.unregisterMouseListener(slotLocks);
+		slotLocks.clearHitBoxes();
 		overlayManager.remove(overlay);
 		clientToolbar.removeNavigation(navButton);
 		panel = null;
@@ -258,7 +273,7 @@ public class RSFlipperPlugin extends Plugin
 		String t = s.getType();
 		if ("sell".equals(t) || "modify_sell".equals(t))
 		{
-			// Sell-Skip (Ramon 2026-07-19): 3 min Ruhe fuer dieses Item — Markt
+			// Sell-Skip (2026-07-19): 3 min Ruhe fuer dieses Item — Markt
 			// beruhigen lassen, andere Slots arbeiten weiter. Gilt seit 2026-07-21
 			// auch fuer Stop-Loss-Vorschlaege (Nie-geblockt-Prinzip).
 			gameState.skipSell(s.getItemId());
@@ -266,7 +281,7 @@ public class RSFlipperPlugin extends Plugin
 		}
 		else if ("modify_buy".equals(t) || "abort".equals(t))
 		{
-			// Nie-geblockt-Prinzip (Ramon 2026-07-21): Wartungs-Skip legt das Offer
+			// Nie-geblockt-Prinzip (2026-07-21): Wartungs-Skip legt das Offer
 			// 3 min still. NICHT skipItem/blockedItems — das erzwang den Abort erst
 			// recht (geblocktes Item war nie mehr "stillGood").
 			gameState.skipMaintenance(s.getItemId());
@@ -309,7 +324,7 @@ public class RSFlipperPlugin extends Plugin
 			// Blockliste neu aufbauen: Item-Namen kommen aus dem Client-Cache, der vor
 			// dem Game-Login nicht bereit ist. Ohne diesen Aufruf bleiben dauerhaft die
 			// nackten IDs stehen, wenn das Panel vor dem Einloggen gerendert wurde
-			// (Ramon 2026-07-27: "auf dem zweiten PC stehen die Namen da").
+			// (2026-07-27).
 			panel.refreshBlockedList();
 		}
 	}
@@ -340,7 +355,7 @@ public class RSFlipperPlugin extends Plugin
 		{
 			gameState.onInventoryChanged(e.getItemContainer());
 		}
-		// Positions-Abgleich (Ramon 2026-07-22): Bank offen -> Bestaende der offenen
+		// Positions-Abgleich (2026-07-22): Bank offen -> Bestaende der offenen
 		// Positions-Items an den Server melden (bullet-proof gegen Phantom-Lots und
 		// untracked Verkaeufe; Bank-Items waren fuer die Engine bisher unsichtbar).
 		if (e.getContainerId() == InventoryID.BANK.getId())
@@ -401,6 +416,21 @@ public class RSFlipperPlugin extends Plugin
 		}
 	}
 
+
+	/**
+	 * Direkt vor dem Zeichnen eines Bildes - der einzige Zeitpunkt, an dem sich der
+	 * schwebende Tooltip der Markthalle noch wegnehmen laesst, bevor er auf dem
+	 * Schirm landet. Aus dem Overlay heraus ginge es nicht, das rendert erst danach.
+	 */
+	@Subscribe
+	public void onBeforeRender(net.runelite.api.events.BeforeRender e)
+	{
+		if (!config.passiveMode() && client.getGameState() == GameState.LOGGED_IN)
+		{
+			overlay.versteckeGeTooltip();
+		}
+	}
+
 	@Subscribe
 	public void onGameTick(GameTick tick)
 	{
@@ -416,7 +446,7 @@ public class RSFlipperPlugin extends Plugin
 			prefill.tick();
 			searchSuggestion.tick();
 		}
-		// M12a Schnell-Poll fuer Dump-Alerts (Ramon 2026-07-19): entkoppelt vom grossen
+		// M12a Schnell-Poll fuer Dump-Alerts (2026-07-19): entkoppelt vom grossen
 		// Sync — bei offener GE alle 2 Ticks (~1,2 s) ein leichter /dump/poll, damit
 		// Alerts fast ohne Verzoegerung ankommen (Racing gegen andere Flipper).
 		if (!config.passiveMode() && config.dumpMinProfit() > 0
@@ -467,7 +497,7 @@ public class RSFlipperPlugin extends Plugin
 		{
 			return;
 		}
-		// Menge auf den LIVE-Kapitalstand kappen (Ramon-Fund 2026-07-19: echter Alert
+		// Menge auf den LIVE-Kapitalstand kappen (Fund 2026-07-19: echter Alert
 		// schlug 3 Stueck vor, die nicht bezahlbar waren — der Server rechnet gegen die
 		// gp des Requests, der Client kennt den aktuellen Stand). Reicht es nicht mal
 		// fuer 1 Stueck: gar kein Alert (ts NICHT merken, damit ein spaeterer Sync mit
@@ -486,7 +516,7 @@ public class RSFlipperPlugin extends Plugin
 		applyDumpAlert(a);
 	}
 
-	/** Debug (Ramon 2026-07-19): simulierter Dump zum Feature-Test ohne echten Markt-Dump.
+	/** Debug (2026-07-19): simulierter Dump zum Feature-Test ohne echten Markt-Dump.
 	 *  Bewusst OHNE Guards (Feature-Schalter/freier Slot) — es soll immer etwas zu sehen geben. */
 	void simulateDumpAlert()
 	{
@@ -523,9 +553,21 @@ public class RSFlipperPlugin extends Plugin
 			? a.get("itemName").getAsString() : "?");
 		sug.addProperty("price", price);
 		sug.addProperty("quantity", amount);
+		// Beide Baselines ausweisen (Nutzerwunsch 01.09.: Rabatt auch gegen das
+		// Tagesniveau). Ein Item kann 12 % unter dem 4h-Schnitt liegen und
+		// trotzdem ueber seinem Tagesniveau - dann war es kurz teuer, kein echter Dump.
+		StringBuilder basis = new StringBuilder();
+		if (a.has("discount") && !a.get("discount").isJsonNull())
+		{
+			basis.append(String.format(" - %.1f%% below 4h", a.get("discount").getAsDouble() * 100));
+		}
+		if (a.has("discount24") && !a.get("discount24").isJsonNull())
+		{
+			basis.append(String.format(", %.1f%% below 24h", a.get("discount24").getAsDouble() * 100));
+		}
 		sug.addProperty("message", "DUMP ALERT: buy " + amount + "x at "
 			+ String.format("%,d", price) + " gp - predicted sell " + String.format("%,d", predSell)
-			+ " gp (~" + String.format("%,d", netProfit) + " gp)"
+			+ " gp (~" + String.format("%,d", netProfit) + " gp)" + basis
 			+ (extreme ? " [extreme dump - verify fill]" : ""));
 		com.google.gson.JsonObject why = new com.google.gson.JsonObject();
 		why.addProperty("potenziellerProfit", netProfit);
@@ -538,7 +580,7 @@ public class RSFlipperPlugin extends Plugin
 		if (config.dumpSound())
 		{
 			clientThread.invokeLater(() -> {
-				// Zwei Wege fuer Zuverlaessigkeit (Ramon-Fund 2026-07-19: In-Game-Ding
+				// Zwei Wege fuer Zuverlaessigkeit (Fund 2026-07-19: In-Game-Ding
 				// blieb stumm, wenn die Spiel-Soundeffekte leise/aus sind): RuneLite-
 				// Notifier (eigene Lautstaerke + Taskbar-Blink) UND der GE-Ding.
 				notifier.notify("Dump alert: " + dumpName);
@@ -550,8 +592,7 @@ public class RSFlipperPlugin extends Plugin
 	private void sync()
 	{
 		com.google.gson.JsonObject status = gameState.buildAccountStatus(
-			config.riskLevel().wire(), // Nutzer-Risikostufe (Ramon 31.08., ersetzt die feste Baseline)
-			config.activity().wire(),
+			config.riskLevel().wire(), // Nutzer-Risikostufe (31.08., ersetzt die feste Baseline)
 			config.blockedItems() == null ? "" : config.blockedItems(),
 			panel.isSellOnly(),
 			panel.isPaused(),
@@ -559,9 +600,10 @@ public class RSFlipperPlugin extends Plugin
 			config.minProfitGp(),
 			config.useP2p(),
 			config.dumpMinProfit(),
-			// Alerts aktiv => IMMER genau 1 Slot reserviert (Ramon 2026-07-19, keine Auswahl).
+			// Alerts aktiv => IMMER genau 1 Slot reserviert (2026-07-19, keine Auswahl).
 			config.dumpMinProfit() > 0 ? 1 : 0
-		);
+		,
+			slotLocks.locked());
 		long gp = status.get("gp").getAsLong();
 		api.postSuggestion(
 			config.serverUrl(),
@@ -598,7 +640,7 @@ public class RSFlipperPlugin extends Plugin
 				{
 					prefsSync.maybePull(response.get("prefsUpdatedAtMs").getAsLong());
 				}
-				// Tier-/Kontingent-Anzeige (Ramon 2026-07-19).
+				// Tier-/Kontingent-Anzeige (2026-07-19).
 				panel.setAccountInfo(response.has("account") && response.get("account").isJsonObject()
 					? response.getAsJsonObject("account") : null);
 
@@ -619,7 +661,7 @@ public class RSFlipperPlugin extends Plugin
 					});
 				}
 				gameState.setSlotHud(slotHud);
-				// Positions-Abgleich (Ramon 2026-07-22): offene Positions-Items merken;
+				// Positions-Abgleich (2026-07-22): offene Positions-Items merken;
 				// beim naechsten Bank-Oeffnen melden wir deren Bestaende zurueck.
 				if (response.has("positionItems") && response.get("positionItems").isJsonArray())
 				{
@@ -651,7 +693,7 @@ public class RSFlipperPlugin extends Plugin
 					? gameState.getCurrentSuggestion() : s;
 				clientThread.invokeLater(() -> {
 					javax.swing.Icon icon = null;
-					// Collect nach fertigem VERKAUF: Muenzhaufen (groesste Stufe) statt Item-Icon (Ramon 2026-07-19).
+					// Collect nach fertigem VERKAUF: Muenzhaufen (groesste Stufe) statt Item-Icon (2026-07-19).
 					boolean coinIcon = "collect".equals(effective.getType()) && effective.getCollectProfit() != Long.MIN_VALUE;
 					if (coinIcon)
 					{
@@ -703,12 +745,12 @@ public class RSFlipperPlugin extends Plugin
 	}
 
 	// Platzhalter-Icon, bis ein richtiges Logo existiert (§18.3): "RF" auf dunklem Grund.
-	/** Sidebar-Icon = Website-Favicon (Ramon 2026-07-19): dunkler Emerald-Kreis
+	/** Sidebar-Icon = Website-Favicon (2026-07-19): dunkler Emerald-Kreis
 	 *  mit gruenem Ring und Aufwaerts-Pfeil — identisch zu app/icon.svg, nur
 	 *  zur Laufzeit gezeichnet statt als Ressource gebundelt. */
 	private static BufferedImage createIcon()
 	{
-		// Neues Logo (Ramon 2026-07-21): Favicon-Ressource statt Laufzeit-Zeichnung.
+		// Neues Logo (2026-07-21): Favicon-Ressource statt Laufzeit-Zeichnung.
 		return net.runelite.client.util.ImageUtil.loadImageResource(RSFlipperPlugin.class, "icon16.png");
 	}
 }

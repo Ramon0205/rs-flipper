@@ -27,10 +27,10 @@ public class RSFlipperPanel extends PluginPanel
 	private final JLabel statusLabel = new JLabel(" ", SwingConstants.CENTER);
 	private final JLabel iconLabel = new JLabel();
 	private final JLabel suggestionLabel = new JLabel(" ", SwingConstants.CENTER);
-	// §4.6 v3 (Ramon): Aktions-Headline + Box-Hintergrund in der In-Game-Highlight-Farbe
-	// FESTE Höhe (Ramon 2026-07-18): genug für Headline + Icon + Name/Profit/Dauer —
+	// §4.6 v3: Aktions-Headline + Box-Hintergrund in der In-Game-Highlight-Farbe
+	// FESTE Höhe (2026-07-18): genug für Headline + Icon + Name/Profit/Dauer —
 	// ändert sich nicht mit dem Vorschlags-Typ (kein Springen des Layouts bei Abort/Wait).
-	// 112 -> 136 (Ramon 2026-07-20): Die ETA-v3-Leg-Zeile (buy/sell) kam dazu —
+	// 112 -> 136 (2026-07-20): Die ETA-v3-Leg-Zeile (buy/sell) kam dazu —
 	// lange Item-Namen (2-3 Zeilen) + Profit + Est. time + Legs brauchen die Hoehe,
 	// sonst wird der Inhalt an den Raendern beschnitten.
 	private static final int SUGGESTION_BOX_HEIGHT = 136;
@@ -52,17 +52,17 @@ public class RSFlipperPanel extends PluginPanel
 	private final JButton skipButton = new JButton("Skip [+]");
 	private final JButton chartButton = new JButton("Chart");
 	private final JButton blockButton = new JButton("Block");
-	// Pause-Button entfernt (Ramon 2026-07-22): der Passivmodus in den Settings deckt das ab.
+	// Pause-Button entfernt (2026-07-22): der Passivmodus in den Settings deckt das ab.
 	private final JToggleButton sellOnlyToggle = new JToggleButton("Sell only");
 
 	private volatile ClientSuggestion current;
 	private final javax.swing.JComboBox<String> activityBox = new javax.swing.JComboBox<>(new String[]{"5 min", "30 min", "2 h", "8 h"});
-	/** Risikostufe (Ramon 31.08.) — gehoert ins Panel, nicht nur in RuneLites Config-Dialog:
+	/** Risikostufe (31.08.) — gehoert ins Panel, nicht nur in RuneLites Config-Dialog:
 	 *  alle uebrigen Einstellungen stehen hier, dort sucht der Nutzer sie auch. */
 	private final javax.swing.JComboBox<String> riskBox = new javax.swing.JComboBox<>(
 		new String[]{"Careful", "Balanced", "Aggressive"});
 	private final javax.swing.JTextField minProfitField = new javax.swing.JTextField();
-	// Free-Tier-UI (Ramon 2026-07-19): Kontingent-Zeile + Opt-in + Reset-Timer + Tier-Label.
+	// Free-Tier-UI (2026-07-19): Kontingent-Zeile + Opt-in + Reset-Timer + Tier-Label.
 	private final JLabel quotaLabel = new JLabel(" ");
 	private final javax.swing.JCheckBox useP2pBox = new javax.swing.JCheckBox("Use my free P2P suggestions");
 	private final JLabel quotaTimerLabel = new JLabel(" ");
@@ -182,7 +182,7 @@ public class RSFlipperPanel extends PluginPanel
 	private final JLabel profitValue = new JLabel("--", SwingConstants.CENTER);
 	private final javax.swing.JComboBox<String> periodCombo =
 		new javax.swing.JComboBox<>(new String[]{"Session", "Today", "Week", "Month", "All time"});
-	// §4.6 Session-Block (Ramon 2026-07-18): Flips, ROI, GP/h, Session-Timer
+	// §4.6 Session-Block (2026-07-18): Flips, ROI, GP/h, Session-Timer
 	private final JLabel statFlips = new JLabel("--", SwingConstants.RIGHT);
 	private final JLabel statRoi = new JLabel("--", SwingConstants.RIGHT);
 	private final JLabel statGph = new JLabel("--", SwingConstants.RIGHT);
@@ -211,7 +211,7 @@ public class RSFlipperPanel extends PluginPanel
 		return row;
 	}
 	/** Liste, die die Viewport-Breite ERZWINGT — sonst rendert Swing sie in Wunschbreite
-	 *  und die rechtsbündigen Profite ragen unsichtbar über den Rand (Ramon 2026-07-18). */
+	 *  und die rechtsbündigen Profite ragen unsichtbar über den Rand (2026-07-18). */
 	private static final class ScrollableList extends JPanel implements javax.swing.Scrollable
 	{
 		@Override
@@ -246,7 +246,7 @@ public class RSFlipperPanel extends PluginPanel
 	}
 
 	private final JPanel itemListPanel = new ScrollableList();
-	// §4.6: Flip-Historie-Suche (Ramon 2026-07-18) — filtert live nach Item-Name.
+	// §4.6: Flip-Historie-Suche (2026-07-18) — filtert live nach Item-Name.
 	private final javax.swing.JTextField searchField = new javax.swing.JTextField();
 	private volatile com.google.gson.JsonObject lastStats;
 	private volatile Runnable statsRefresher;
@@ -277,11 +277,11 @@ public class RSFlipperPanel extends PluginPanel
 		de.rsflipper.api.AuthService auth, java.util.function.Supplier<String> serverUrl)
 	{
 		// wrap=false: RuneLite staucht gewrappte Panels auf ihre bevorzugte Höhe —
-		// wir wollen die VOLLE Sidebar-Höhe (Item-Liste bis zum Fensterende, Ramon 2026-07-18).
+		// wir wollen die VOLLE Sidebar-Höhe (Item-Liste bis zum Fensterende, 2026-07-18).
 		super(false);
 		this.config = config;
 		this.configManager = configManager;
-		// Altlast-Migration (Ramon 2026-07-22): fruehere Erfassungen speicherten '-' als
+		// Altlast-Migration (2026-07-22): fruehere Erfassungen speicherten '-' als
 		// '/' (macOS mappt Sonderzeichen-KeyCodes uebers US-Layout). Gespeicherte
 		// Slash-Binds ohne Modifier zuruecksetzen -> der neue Standard '-' greift.
 		net.runelite.client.config.Keybind legacy = config.chartHotkey();
@@ -297,7 +297,7 @@ public class RSFlipperPanel extends PluginPanel
 		content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 		content.setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-		// Neues Logo (Ramon 2026-07-21): plugin-header.png
+		// Neues Logo (2026-07-21): plugin-header.png
 		// als Ressource — ersetzt das frueher gezeichnete Mark+Schriftzug-Logo.
 		java.awt.image.BufferedImage headerImg =
 			net.runelite.client.util.ImageUtil.loadImageResource(RSFlipperPanel.class, "header.png");
@@ -311,7 +311,7 @@ public class RSFlipperPanel extends PluginPanel
 		suggestionLabel.setAlignmentX(CENTER_ALIGNMENT);
 		suggestionLabel.setForeground(Color.WHITE);
 		// Kein eigener Rahmen mehr — die Box (suggestionRow) trägt Border + Tönung
-		// (Ramon 2026-07-18: innere Linie war auf getöntem Grund als Kasten sichtbar).
+		// (2026-07-18: innere Linie war auf getöntem Grund als Kasten sichtbar).
 		suggestionLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
 
 		skipButton.addActionListener(e -> {
@@ -330,7 +330,7 @@ public class RSFlipperPanel extends PluginPanel
 		});
 		sellOnlyToggle.addActionListener(e -> onToggleChanged.run());
 
-		// Chart-Button (Ramon 2026-07-22): oeffnet die Item-Detailseite mit Preisgraph
+		// Chart-Button (2026-07-22): oeffnet die Item-Detailseite mit Preisgraph
 		// auf rs-flipper.com — zur eigenen Bewertung des Vorschlags. Hotkey: Ctrl+G.
 		chartButton.addActionListener(e -> {
 			ClientSuggestion s = current;
@@ -339,7 +339,7 @@ public class RSFlipperPanel extends PluginPanel
 				net.runelite.client.util.LinkBrowser.browse("https://rs-flipper.com/items?item=" + s.getItemId());
 			}
 		});
-		// Layout (Ramon 2026-07-22): Chart volle Breite, darunter Skip | Block halb/halb.
+		// Layout (2026-07-22): Chart volle Breite, darunter Skip | Block halb/halb.
 		JPanel actionRow = new JPanel(new java.awt.GridBagLayout());
 		actionRow.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		java.awt.GridBagConstraints gc = new java.awt.GridBagConstraints();
@@ -355,13 +355,13 @@ public class RSFlipperPanel extends PluginPanel
 		gc.insets = new java.awt.Insets(0, 3, 0, 0);
 		actionRow.add(blockButton, gc);
 		// BoxLayout streckt Panels vertikal und GridBag ZENTRIERT dann die Buttons —
-		// die leeren Baender oben/unten (Ramon 2026-07-22) verschwinden mit einem
+		// die leeren Baender oben/unten (2026-07-22) verschwinden mit einem
 		// harten Hoehendeckel auf die tatsaechliche Wunschhoehe.
 		actionRow.setAlignmentX(CENTER_ALIGNMENT);
 		actionRow.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE,
 			chartButton.getPreferredSize().height + skipButton.getPreferredSize().height + 4));
 
-		content.add(javax.swing.Box.createVerticalStrut(10)); // Luft nach oben (Ramon 2026-07-19)
+		content.add(javax.swing.Box.createVerticalStrut(10)); // Luft nach oben (2026-07-19)
 		content.add(title);
 		content.add(javax.swing.Box.createVerticalStrut(8));
 		content.add(statusLabel);
@@ -412,16 +412,16 @@ public class RSFlipperPanel extends PluginPanel
 		quotaRow.setVisible(false);
 		content.add(quotaRow);
 		new javax.swing.Timer(30_000, e -> updateQuotaTimer()).start();
-		// Mini-Preisgraph entfernt (Ramon 2026-07-22): zu wenig ablesbar — der
+		// Mini-Preisgraph entfernt (2026-07-22): zu wenig ablesbar — der
 		// Chart-Button oeffnet stattdessen den vollen Graph auf der Website.
 		content.add(actionRow);
 
-		// ── Profit-Sektion (§4.6 UI v2 — Ramon 2026-07-18) ──
+		// ── Profit-Sektion (§4.6 UI v2 — 2026-07-18) ──
 		JPanel profitHeader = new JPanel(new BorderLayout(0, 2));
 		profitHeader.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		JLabel profitCaption = new JLabel("Profit:", SwingConstants.CENTER);
 		profitCaption.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		profitValue.setFont(profitValue.getFont().deriveFont(Font.BOLD, 23f)); // +15% (Ramon)
+		profitValue.setFont(profitValue.getFont().deriveFont(Font.BOLD, 23f)); // +15%
 		profitValue.setForeground(new Color(46, 204, 113));
 		profitHeader.add(profitCaption, BorderLayout.NORTH);
 		profitHeader.add(profitValue, BorderLayout.CENTER);
@@ -536,6 +536,8 @@ public class RSFlipperPanel extends PluginPanel
 			onToggleChanged.run();
 		});
 		activityBox.setSelectedIndex(config.targetEtf().ordinal());
+		activityBox.setToolTipText("Suggestions aim for this speed, and set how patiently your "
+			+ "offers are managed. Much faster flips are filtered out unless nothing else is available.");
 		activityBox.addActionListener(e -> {
 			configManager.setConfiguration(RSFlipperConfig.GROUP, "targetEtf",
 				RSFlipperConfig.Timeframe.values()[activityBox.getSelectedIndex()]);
@@ -589,7 +591,7 @@ public class RSFlipperPanel extends PluginPanel
 		// ── M9: Account/Login (SPEC 12.1) ──
 		settingsTab.add(buildAccountSection(auth, serverUrl, onToggleChanged));
 		settingsTab.add(javax.swing.Box.createVerticalStrut(14));
-		// Phase 3 (Ramon 2026-07-20): Sync-Schalter — LOKAL je Client, damit zwei
+		// Phase 3 (2026-07-20): Sync-Schalter — LOKAL je Client, damit zwei
 		// parallele Charaktere unterschiedliche Setups fahren koennen.
 		final javax.swing.JCheckBox syncBox = new javax.swing.JCheckBox(
 			"Sync settings across devices", config.syncSettings());
@@ -603,7 +605,7 @@ public class RSFlipperPanel extends PluginPanel
 		settingsTab.add(syncBox);
 		settingsTab.add(javax.swing.Box.createVerticalStrut(10));
 
-		JLabel activityCaption = new JLabel("Target time to fill:");
+		JLabel activityCaption = new JLabel("Preferred fill time:");
 		JLabel minProfitCaption = new JLabel("Minimum profit (gp, e.g. 20k):");
 		for (JLabel l : new JLabel[]{activityCaption})
 		{
@@ -644,13 +646,13 @@ public class RSFlipperPanel extends PluginPanel
 		settingsTab.add(javax.swing.Box.createVerticalStrut(4));
 		settingsTab.add(hotkeyRow("Open item chart:", "chartHotkey", config.chartHotkey(), configManager));
 
-		// Sell-only hierher verschoben (Ramon 2026-07-22): macht im Hauptbereich Platz.
+		// Sell-only hierher verschoben (2026-07-22): macht im Hauptbereich Platz.
 		settingsTab.add(javax.swing.Box.createVerticalStrut(10));
 		sellOnlyToggle.setAlignmentX(LEFT_ALIGNMENT);
 		sellOnlyToggle.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 28));
 		settingsTab.add(sellOnlyToggle);
 
-		// Blockliste (Ramon 2026-07-22): Uebersicht + Entfernen direkt im Panel.
+		// Blockliste (2026-07-22): Uebersicht + Entfernen direkt im Panel.
 		settingsTab.add(javax.swing.Box.createVerticalStrut(10));
 		JLabel blockedCaption = new JLabel("Blocked items:");
 		blockedCaption.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
@@ -662,13 +664,13 @@ public class RSFlipperPanel extends PluginPanel
 		settingsTab.add(blockedListPanel);
 		refreshBlockedList();
 
-		// M12a Dump-Alerts (Ramon 2026-07-19): Opt-in-Schwelle, reservierte Slots, Sound.
+		// M12a Dump-Alerts (2026-07-19): Opt-in-Schwelle, reservierte Slots, Sound.
 		settingsTab.add(javax.swing.Box.createVerticalStrut(14));
 		JLabel dumpCaption = new JLabel("Dump alerts:");
 		dumpCaption.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		dumpCaption.setAlignmentX(LEFT_ALIGNMENT);
 		settingsTab.add(dumpCaption);
-		// Premium-Verkaufsargument (Ramon 2026-07-20): Feature fuer Free SICHTBAR,
+		// Premium-Verkaufsargument (2026-07-20): Feature fuer Free SICHTBAR,
 		// aber gesperrt — Hinweis-Label + deaktivierte Controls (Server gated ohnehin).
 		dumpPremiumHint.setForeground(new java.awt.Color(255, 215, 80));
 		dumpPremiumHint.setFont(dumpPremiumHint.getFont().deriveFont(12f));
@@ -691,8 +693,13 @@ public class RSFlipperPanel extends PluginPanel
 		dumpCombo.setSelectedIndex(dumpSel);
 		dumpCombo.setAlignmentX(LEFT_ALIGNMENT);
 		dumpCombo.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 28));
-		dumpCombo.addActionListener(e -> configManager.setConfiguration(
-			RSFlipperConfig.GROUP, "dumpMinProfit", dumpValues[dumpCombo.getSelectedIndex()]));
+		dumpCombo.addActionListener(e -> {
+			configManager.setConfiguration(
+				RSFlipperConfig.GROUP, "dumpMinProfit", dumpValues[dumpCombo.getSelectedIndex()]);
+			// Wie bei Risikostufe und Fill-Zeit: sofort neu syncen. Ohne das wirkte das
+			// Abschalten bis zum naechsten Herzschlag folgenlos (01.09.).
+			onToggleChanged.run();
+		});
 		settingsTab.add(dumpCombo);
 		settingsTab.add(javax.swing.Box.createVerticalStrut(6));
 		final javax.swing.JCheckBox dumpSoundBox = new javax.swing.JCheckBox("Alert sound", config.dumpSound());
@@ -704,10 +711,10 @@ public class RSFlipperPanel extends PluginPanel
 		dumpSoundBox.addActionListener(e -> configManager.setConfiguration(
 			RSFlipperConfig.GROUP, "dumpSound", dumpSoundBox.isSelected()));
 		settingsTab.add(dumpSoundBox);
-		// Debug-Simulate-Button entfernt (Ramon 2026-07-20, Launch-Vorbereitung) —
+		// Debug-Simulate-Button entfernt (2026-07-20, Launch-Vorbereitung) —
 		// der Hook simulateDumpAlert bleibt im Plugin fuer kuenftige Dev-Zwecke.
 
-		// Phase 4 (Ramon 2026-07-20): Feedback/Bug direkt aus dem Plugin.
+		// Phase 4 (2026-07-20): Feedback/Bug direkt aus dem Plugin.
 		settingsTab.add(javax.swing.Box.createVerticalStrut(14));
 		JButton feedbackButton = new JButton("Send feedback / report a bug");
 		feedbackButton.setAlignmentX(LEFT_ALIGNMENT);
@@ -715,7 +722,7 @@ public class RSFlipperPanel extends PluginPanel
 		feedbackButton.addActionListener(e -> openFeedbackDialog());
 		settingsTab.add(feedbackButton);
 
-		// Phase 6 (Ramon 2026-07-20): Community-Server beitreten.
+		// Phase 6 (2026-07-20): Community-Server beitreten.
 		settingsTab.add(javax.swing.Box.createVerticalStrut(6));
 		JButton discordButton = new JButton("Join our Discord");
 		discordButton.setAlignmentX(LEFT_ALIGNMENT);
@@ -724,7 +731,7 @@ public class RSFlipperPanel extends PluginPanel
 		discordButton.setForeground(java.awt.Color.WHITE);
 		discordButton.addActionListener(e -> net.runelite.client.util.LinkBrowser.browse("https://discord.gg/F62tcCa9jS"));
 		settingsTab.add(discordButton);
-		// Build-Kennung (Ramon 2026-07-22): eindeutig pruefbar, welcher Stand laeuft.
+		// Build-Kennung (2026-07-22): eindeutig pruefbar, welcher Stand laeuft.
 		settingsTab.add(javax.swing.Box.createVerticalStrut(8));
 		buildLabel.setForeground(new java.awt.Color(120, 130, 140));
 		buildLabel.setFont(buildLabel.getFont().deriveFont(11f));
@@ -735,7 +742,7 @@ public class RSFlipperPanel extends PluginPanel
 		tabs.setBackground(ColorScheme.DARK_GRAY_COLOR);
 		tabs.addTab("Flip", content);
 		tabs.addTab("Settings", settingsTab);
-		add(tabs, BorderLayout.CENTER); // Liste darf bis zum Fensterende wachsen (Ramon 2026-07-18)
+		add(tabs, BorderLayout.CENTER); // Liste darf bis zum Fensterende wachsen (2026-07-18)
 
 		// Stats laufend aktuell halten (30 s) — die Profit-Sektion ist jetzt immer sichtbar.
 		new javax.swing.Timer(30_000, e -> {
@@ -752,7 +759,7 @@ public class RSFlipperPanel extends PluginPanel
 		SwingUtilities.invokeLater(() -> statusLabel.setText("<html><center>" + text + "</center></html>"));
 	}
 
-	/** Build-Kennung im Settings-Footer (Ramon 2026-07-22). */
+	/** Build-Kennung im Settings-Footer (2026-07-22). */
 	void setBuildInfo(String build)
 	{
 		SwingUtilities.invokeLater(() -> buildLabel.setText("Build: " + build));
@@ -781,7 +788,7 @@ public class RSFlipperPanel extends PluginPanel
 		{
 			// Druckbare Tasten werden in keyTyped erfasst — NUR dort traegt das Event
 			// garantiert das echte Zeichen (macOS-Falle: keyPressed lieferte fuer '-'
-			// den US-Layout-Code '/'; Ramon 2026-07-22). keyPressed bleibt fuer ESC
+			// den US-Layout-Code '/'; 2026-07-22). keyPressed bleibt fuer ESC
 			// und nicht-druckbare Tasten (ENTER, F-Tasten, Kombis mit Strg/Alt).
 			@Override
 			public void keyTyped(java.awt.event.KeyEvent e)
@@ -847,7 +854,7 @@ public class RSFlipperPanel extends PluginPanel
 	}
 
 	/** Keybind-Anzeige ASCII-sicher: die Pixelschrift kann macOS-Symbole (z.B. Return-Pfeil) nicht darstellen. */
-	// Dump-Alert-Settings-Controls (Premium-Sperre, Ramon 2026-07-20).
+	// Dump-Alert-Settings-Controls (Premium-Sperre, 2026-07-20).
 	private javax.swing.JComboBox<String> dumpCombo;
 	private javax.swing.JCheckBox dumpSoundBox;
 	private final JLabel dumpPremiumHint = new JLabel("Premium feature - upgrade to unlock");
@@ -879,7 +886,7 @@ public class RSFlipperPanel extends PluginPanel
 		dumpPulseTimer = new javax.swing.Timer(80, e -> {
 			double t = ((System.currentTimeMillis() - start) % 900) / 900.0;
 			float p = (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * t)); // 0..1
-			// Rahmen: dunkles Pink <-> knalliges Pink (Ramon 2026-07-22, vorher rot).
+			// Rahmen: dunkles Pink <-> knalliges Pink (2026-07-22, vorher rot).
 			Color pink = new Color(255, 64, 210);
 			Color dim = new Color(92, 26, 76);
 			Color line = lerp(dim, pink, p);
@@ -987,7 +994,7 @@ public class RSFlipperPanel extends PluginPanel
 			case java.awt.event.KeyEvent.VK_BACK_SPACE: name = "BACKSPACE"; break;
 			case java.awt.event.KeyEvent.VK_ESCAPE: name = "ESC"; break;
 			default:
-				// Zeichen-Anzeige statt getKeyText (Ramon 2026-07-22): getKeyText mappt
+				// Zeichen-Anzeige statt getKeyText (2026-07-22): getKeyText mappt
 				// den Code uebers AKTUELLE Layout und zeigte VK_MINUS als "/". Die
 				// VK-Codes druckbarer ASCII-Zeichen SIND deren Zeichencodes — direkt
 				// als Zeichen rendern, layout-unabhaengig und konsistent zur Erfassung.
@@ -1046,7 +1053,7 @@ public class RSFlipperPanel extends PluginPanel
 			statFlips.setText(String.format("%,d", flips));
 			statGph.setText(String.format("%,d gp/h", gph));
 
-			// Item-Liste: separat gerendert (Such-Filter, Ramon 2026-07-18).
+			// Item-Liste: separat gerendert (Such-Filter, 2026-07-18).
 			lastStats = stats;
 			renderItemList();
 		});
@@ -1123,13 +1130,13 @@ public class RSFlipperPanel extends PluginPanel
 				default: headline = "Waiting"; bg = ColorScheme.DARKER_GRAY_COLOR; break;
 			}
 			// Pin-Vorschläge (Neu-Einstellen im Modify-Flow) bleiben ORANGE als Change Order —
-			// der User modifiziert ja, auch wenn technisch neu platziert wird (Ramon 2026-07-18).
+			// der User modifiziert ja, auch wenn technisch neu platziert wird (2026-07-18).
 			if (s.isModifyFlow() && ("buy".equals(type) || "sell".equals(type)))
 			{
 				headline = "buy".equals(type) ? "Change Buy Order" : "Change Sell Order";
 				bg = new Color(255, 152, 31);
 			}
-			// M12a Dump-Alert: eigene Headline + PINK (Ramon 2026-07-22, vorher rot —
+			// M12a Dump-Alert: eigene Headline + PINK (2026-07-22, vorher rot —
 			// rot bleibt exklusiv fuer Abort), Feld pulsiert.
 			if (s.isDumpAlert())
 			{
@@ -1137,7 +1144,7 @@ public class RSFlipperPanel extends PluginPanel
 				bg = new Color(255, 64, 210);
 			}
 			boolean colored = !"wait".equals(type);
-			// Sehr dunkle Tönung der Aktions-Farbe als Hintergrund (Ramon 2026-07-18):
+			// Sehr dunkle Tönung der Aktions-Farbe als Hintergrund (2026-07-18):
 			// ~16% Farbe auf dunklem Grund — Status sichtbar, Text bestens lesbar.
 			Color base = ColorScheme.DARKER_GRAY_COLOR;
 			Color tinted = colored ? new Color(
@@ -1148,7 +1155,7 @@ public class RSFlipperPanel extends PluginPanel
 			suggestionRow.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(colored ? bg : ColorScheme.DARK_GRAY_COLOR, 2, true),
 				BorderFactory.createEmptyBorder(3, 6, 5, 6)));
-			// M12a: Dump-Alert-Feld pulsiert PINK (Ramon 2026-07-22).
+			// M12a: Dump-Alert-Feld pulsiert PINK (2026-07-22).
 			if (s.isDumpAlert())
 			{
 				startDumpPulse();
@@ -1163,18 +1170,18 @@ public class RSFlipperPanel extends PluginPanel
 				: (colored ? bg : ColorScheme.LIGHT_GRAY_COLOR));
 			iconLabel.setIcon(itemIcon);
 
-			// Inhalt: nur Item-Name, Profit, geschätzte Dauer (Ramon 2026-07-18).
+			// Inhalt: nur Item-Name, Profit, geschätzte Dauer (2026-07-18).
 			StringBuilder html = new StringBuilder("<html>");
 			String textColor = "#e0e0e0";
 			if (s.getItemName() != null)
 			{
-				// Stückzahl vor dem Namen (Ramon 2026-07-18): "2 x Antler guard"
+				// Stückzahl vor dem Namen (2026-07-18): "2 x Antler guard"
 				String qty = s.getQuantity() > 0
 					&& !"abort".equals(type) && !"collect".equals(type)
 					? String.format("%,d x ", s.getQuantity()) : "";
 				html.append("<b><font color='").append(textColor).append("'>")
 					.append(qty).append(s.getItemName()).append("</font></b><br>");
-				// Collect nach Verkauf: realisierten Profit gross und farbig zeigen (Ramon 2026-07-19).
+				// Collect nach Verkauf: realisierten Profit gross und farbig zeigen (2026-07-19).
 				if ("collect".equals(type) && s.getCollectProfit() != Long.MIN_VALUE)
 				{
 					long cp = s.getCollectProfit();
@@ -1201,7 +1208,7 @@ public class RSFlipperPanel extends PluginPanel
 				{
 					String eta = s.getFillTimeMin() > 240 ? ">4 h" : "~" + Math.max(1, Math.round(s.getFillTimeMin())) + " min";
 					html.append("<font color='").append(textColor).append("'>Est. time: ").append(eta).append("</font>");
-					// ETA v3 (Ramon 2026-07-20): Kauf-/Verkaufs-Leg ausweisen — gleiche
+					// ETA v3 (2026-07-20): Kauf-/Verkaufs-Leg ausweisen — gleiche
 					// Schriftgroesse wie der Rest; auch wenn nur EIN Leg bekannt ist.
 					com.google.gson.JsonObject why = s.getWhy();
 					boolean hasBuyLeg = why != null && why.has("fillKaufMin");
@@ -1226,7 +1233,7 @@ public class RSFlipperPanel extends PluginPanel
 				}
 				if (s.isZeitGelockert())
 				{
-					// §4.6 v2: kein Item im gewählten Zeitfenster — ehrlicher Hinweis (Ramon).
+					// §4.6 v2: kein Item im gewählten Zeitfenster — ehrlicher Hinweis.
 					html.append("<br><font size='-2' color='#ff981f'>No match for your filters - closest ETA shown</font>");
 				}
 			}
@@ -1238,7 +1245,7 @@ public class RSFlipperPanel extends PluginPanel
 				upsellLinkActive = msg.contains(upsell);
 				if (upsellLinkActive)
 				{
-					// Upsell-CTA farbig + unterstrichen, Klick oeffnet die Upgrade-Seite (Ramon 2026-07-19).
+					// Upsell-CTA farbig + unterstrichen, Klick oeffnet die Upgrade-Seite (2026-07-19).
 					msg = msg.replace(upsell,
 						"<font color='#2ecc71'><u>" + upsell + "</u></font>");
 				}
@@ -1261,7 +1268,7 @@ public class RSFlipperPanel extends PluginPanel
 
 	boolean isPaused()
 	{
-		return false; // Pause-Button entfernt (Ramon 2026-07-22) — Passivmodus uebernimmt
+		return false; // Pause-Button entfernt (2026-07-22) — Passivmodus uebernimmt
 	}
 
 	boolean isSellOnly()
@@ -1405,7 +1412,7 @@ public class RSFlipperPanel extends PluginPanel
 		return box;
 	}
 
-	/** Tier-/Kontingent-Anzeige aus der Sync-Antwort (Ramon 2026-07-19). */
+	/** Tier-/Kontingent-Anzeige aus der Sync-Antwort (2026-07-19). */
 	void setAccountInfo(com.google.gson.JsonObject account)
 	{
 		javax.swing.SwingUtilities.invokeLater(() -> {
@@ -1422,12 +1429,12 @@ public class RSFlipperPanel extends PluginPanel
 			boolean launchFree = account.has("launchFree") && !account.get("launchFree").isJsonNull()
 				&& account.get("launchFree").getAsBoolean();
 			int maxChars = account.has("maxChars") ? account.get("maxChars").getAsInt() : 1;
-			// Free-Launch (Ramon 2026-07-20): alles freigeschaltet — ehrlich anzeigen.
+			// Free-Launch (2026-07-20): alles freigeschaltet — ehrlich anzeigen.
 			tierTypeLabel.setText("Type: " + (premium ? "Premium"
 				: launchFree ? "Free (launch - all features unlocked)" : "Free"));
 			tierCharsLabel.setText("Unlocked characters: " + (maxChars < 0 ? "unlimited" : String.valueOf(maxChars)));
 			getPremiumButton.setVisible(!premium && !launchFree);
-			// Launch: ALLE sind quasi Premium (Ramon 2026-07-20) — Dump-Sektion offen.
+			// Launch: ALLE sind quasi Premium (2026-07-20) — Dump-Sektion offen.
 			applyDumpPremiumLock(premium || launchFree);
 			if (premium)
 			{
@@ -1461,7 +1468,7 @@ public class RSFlipperPanel extends PluginPanel
 			quotaResetMs = p2p.get("resetsAtMs").getAsLong();
 			quotaLabel.setText(String.format("P2P suggestions today: %d/%d", left, limit));
 			boolean exhausted = left == 0;
-			// Aufgebraucht => "0/10" in Rot (Ramon 2026-07-19).
+			// Aufgebraucht => "0/10" in Rot (2026-07-19).
 			quotaLabel.setForeground(exhausted ? new java.awt.Color(231, 76, 60) : ColorScheme.LIGHT_GRAY_COLOR);
 			quotaTimerLabel.setVisible(exhausted);
 			updateQuotaTimer();
@@ -1498,7 +1505,7 @@ public class RSFlipperPanel extends PluginPanel
 		}
 		popupShownForDay = today;
 		Object[] options = {"Get Premium", "Later"};
-		// Mittig auf dem BILDSCHIRM (Ramon 2026-07-19) — mit Panel-Parent hing der
+		// Mittig auf dem BILDSCHIRM (2026-07-19) — mit Panel-Parent hing der
 		// Dialog rechts an der Sidebar.
 		int pick = javax.swing.JOptionPane.showOptionDialog(null,
 			"You've used all 10 free P2P suggestions for today.\n"

@@ -64,6 +64,14 @@ public class OfferPrefill implements KeyListener
 		this.skipHandler = handler;
 	}
 
+	/** Rueckmeldung, wenn die Skip-Taste ins Leere geht (siehe unten). */
+	private volatile Runnable nothingToSkipHandler;
+
+	public void setNothingToSkipHandler(Runnable handler)
+	{
+		this.nothingToSkipHandler = handler;
+	}
+
 	@Inject
 	OfferPrefill(Client client, ClientThread clientThread, GameStateService gameState, RSFlipperConfig config,
 		de.rsflipper.api.ApiClient api, java.util.concurrent.ScheduledExecutorService scheduler)
@@ -88,7 +96,7 @@ public class OfferPrefill implements KeyListener
 		pendingValue = v;
 	}
 
-	/** §4.6 (Ramon 2026-07-18): Auch bei MANUELLEN Trades den optimalen Preis liefern —
+	/** §4.6 (2026-07-18): Auch bei MANUELLEN Trades den optimalen Preis liefern —
 	 *  sobald ein GE-Setup offen ist, wird die Server-Quote fürs Item geholt (30s-Cache). */
 	private void refreshQuote()
 	{
@@ -139,7 +147,7 @@ public class OfferPrefill implements KeyListener
 			return 0;
 		}
 		String t = title.getText();
-		// Mengen-Uebernahme gilt fuer ALLE Vorschlagstypen (Ramon 2026-07-22, ersetzt
+		// Mengen-Uebernahme gilt fuer ALLE Vorschlagstypen (2026-07-22, ersetzt
 		// die !isModify-Sperre): Wer die Mengen-Eingabe oeffnet, bekommt mit Enter die
 		// Soll-Menge — das Overlay markiert das Feld ohnehin nur noch bei Abweichung.
 		if (t.startsWith("How many"))
@@ -174,7 +182,7 @@ public class OfferPrefill implements KeyListener
 		return isSell ? quoteSell : quoteBuy;
 	}
 
-	/** Waehrend die Markthalle offen ist, darf '+' NIE in den Chat gelangen (Ramon
+	/** Waehrend die Markthalle offen ist, darf '+' NIE in den Chat gelangen (
 	 *  2026-07-19). WICHTIG: kein Widget-Zugriff hier — der Key-Handler laeuft im
 	 *  AWT-Thread; der direkte getWidget-Aufruf brach den Event-Durchlauf komplett
 	 *  (kein Chat-Zeichen, aber auch KEIN Skip mehr). Stattdessen Tick-Cache. */
@@ -198,11 +206,11 @@ public class OfferPrefill implements KeyListener
 		{
 			return;
 		}
-		// Chart-Hotkey (Ramon 2026-07-22): NUR bei offener Markthalle aktiv — dort wird
+		// Chart-Hotkey (2026-07-22): NUR bei offener Markthalle aktiv — dort wird
 		// die Taste komplett geschluckt (auch ohne Vorschlag, damit nichts in den Chat
 		// rutscht). Bei geschlossener GE tippt die Taste ganz normal (Chat).
 		net.runelite.client.config.Keybind chartKb = config.chartHotkey();
-		// Layout-Fallback (Ramon 2026-07-22, gleiche Lektion wie beim '+'-Skip):
+		// Layout-Fallback (2026-07-22, gleiche Lektion wie beim '+'-Skip):
 		// Sonderzeichen-Tasten liefern vom Spiel-Canvas je nach Layout ANDERE
 		// KeyCodes als die Swing-Erfassung — zusaetzlich uebers getippte ZEICHEN
 		// matchen (getExtendedKeyCodeForChar ist layout-unabhaengig).
@@ -235,7 +243,7 @@ public class OfferPrefill implements KeyListener
 		}
 		// Layout-robust: konfigurierter Keybind ODER das Standard-Zeichen
 		// (deutsche Tastaturen liefern je nach Layout unterschiedliche KeyCodes).
-		// ENTER-Uebernahme (Ramon 2026-07-19): Bei OFFENER, noch LEERER Zahleneingabe
+		// ENTER-Uebernahme (2026-07-19): Bei OFFENER, noch LEERER Zahleneingabe
 		// fuellt Enter den vorgeschlagenen Wert (2x Enter = uebernehmen + bestaetigen).
 		// Hat der User selbst getippt, laeuft Enter normal durch und bestaetigt SEINEN
 		// Wert — nichts wird ueberschrieben. Leeres Enter war im Spiel ein No-Op.
@@ -263,6 +271,18 @@ public class OfferPrefill implements KeyListener
 			{
 				clientThread.invokeLater(handler);
 				e.consume();
+			}
+			else
+			{
+				// Ohne Rueckmeldung wirkt die Taste kaputt (01.09.): Ein
+				// Warte-Hinweis ist keine Aktion, es gibt also nichts zu ueberspringen.
+				// Die Taste bleibt hier bewusst UNverbraucht — sie soll nur melden,
+				// nicht das Spiel um einen Tastendruck bringen.
+				Runnable leer = nothingToSkipHandler;
+				if (leer != null)
+				{
+					leer.run();
+				}
 			}
 			return;
 		}
@@ -302,7 +322,7 @@ public class OfferPrefill implements KeyListener
 		{
 			e.consume();
 		}
-		// Chart-Taste (Ramon 2026-07-22): gleiches Muster — das getippte Zeichen der
+		// Chart-Taste (2026-07-22): gleiches Muster — das getippte Zeichen der
 		// gebundenen Taste bei offener GE aus dem Chat fernhalten (modifierlose Binds;
 		// mit Strg/Alt entsteht ohnehin kein Chat-Zeichen).
 		if (!config.passiveMode() && geOpen())

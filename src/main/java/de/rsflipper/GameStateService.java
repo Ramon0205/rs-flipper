@@ -205,7 +205,7 @@ public class GameStateService
 		urgent = true;
 	}
 
-	// Positions-Abgleich (Ramon 2026-07-22): Items mit offener Server-Position — beim
+	// Positions-Abgleich (2026-07-22): Items mit offener Server-Position — beim
 	// naechsten Bank-Oeffnen melden wir deren Bank-Bestaende (0 = nicht in der Bank).
 	private volatile java.util.Set<Integer> positionItems = java.util.Collections.emptySet();
 	private final Map<Integer, Integer> pendingBankCounts = new java.util.concurrent.ConcurrentHashMap<>();
@@ -245,7 +245,7 @@ public class GameStateService
 	{
 		gp = 0;
 		inventory.clear();
-		// Aggregieren + Noted-Normalisierung (Ramon-Fund 2026-07-18): 5 Tranchen-Boots
+		// Aggregieren + Noted-Normalisierung (Fund 2026-07-18): 5 Tranchen-Boots
 		// = 5 Slot-Einträge, Zertifikate = eigene Item-ID — der Server braucht EINE
 		// Zeile pro echtem Item mit Gesamtmenge, sonst wird 'verkaufe alle' zu 'x1'.
 		Map<Integer, Integer> agg = new HashMap<>();
@@ -286,7 +286,7 @@ public class GameStateService
 	}
 
 	/** Sofort-Sync beim nächsten Tick (~600ms) — für User-Aktionen wie den
-	 *  Modify-Backout, die keine Offer-Events erzeugen (Ramon 2026-07-18). */
+	 *  Modify-Backout, die keine Offer-Events erzeugen (2026-07-18). */
 	public void markUrgent()
 	{
 		dirty = true;
@@ -407,10 +407,10 @@ public class GameStateService
 	public static final class SlotHud
 	{
 		public final Long profit;      // Sell: Netto vs. Einstand | Buy: prospektiv (gelb)
-		public final boolean buySide;  // Kauforder → gelbe Plakette (Ramon 2026-07-18)
+		public final boolean buySide;  // Kauforder → gelbe Plakette (2026-07-18)
 		public final long ageSecAtSync;
 		public final double etaMin;    // -1 = unbekannt
-		// Break-even-Geduld (Ramon 2026-07-21): Restzeit der Halte-Regel in Sekunden,
+		// Break-even-Geduld (2026-07-21): Restzeit der Halte-Regel in Sekunden,
 		// -1 = Regel greift nicht. Sichtbar am Slot, sonst wirkt er haengengeblieben.
 		public final long holdRemainSecAtSync;
 		public final long receivedAt;  // fürs Live-Hochzählen des Alters
@@ -463,7 +463,7 @@ public class GameStateService
 		}
 	}
 
-	/** Sell-Skip (Ramon 2026-07-19): Verkaufs-Vorschlag 3 min nicht erneut bringen. */
+	/** Sell-Skip (2026-07-19): Verkaufs-Vorschlag 3 min nicht erneut bringen. */
 	private static final long SELL_SKIP_MS = 3 * 60_000;
 	private final java.util.Map<Integer, Long> sellSkips = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -476,7 +476,7 @@ public class GameStateService
 		}
 	}
 
-	// Nie-geblockt-Prinzip (Ramon 2026-07-21): Skip auf Kauf-Wartung (modify_buy/abort)
+	// Nie-geblockt-Prinzip (2026-07-21): Skip auf Kauf-Wartung (modify_buy/abort)
 	// legt das Offer 3 min still, statt das Item zu blocken — der alte Weg (blockedItems)
 	// erzwang den Abort erst recht, weil ein geblocktes Item nie mehr "stillGood" war.
 	private final java.util.Map<Integer, Long> maintSkips = new java.util.concurrent.ConcurrentHashMap<>();
@@ -491,13 +491,13 @@ public class GameStateService
 	}
 
 	/** Baut den AccountStatus-Payload (SPEC §12.2) inkl. gepufferter Fill-Events (§12.4a). */
-	public JsonObject buildAccountStatus(String profile, String activity, String blockedCsv, boolean sellOnly, boolean paused,
-		int targetEtfMin, int minProfitGp, boolean useP2p, int dumpMinProfit, int reservedSlots)
+	public JsonObject buildAccountStatus(String profile, String blockedCsv, boolean sellOnly, boolean paused,
+		int targetEtfMin, int minProfitGp, boolean useP2p, int dumpMinProfit, int reservedSlots,
+		java.util.Set<Integer> ignoredSlots)
 	{
 		long now = System.currentTimeMillis();
 		JsonObject o = new JsonObject();
 		o.addProperty("profile", profile);
-		o.addProperty("activity", activity);
 		o.addProperty("sellOnly", sellOnly);
 		o.addProperty("targetEtfMin", targetEtfMin);
 		o.addProperty("minProfitGp", Math.max(0, minProfitGp));
@@ -556,6 +556,7 @@ public class GameStateService
 		// M12a Dump-Alerts: Schwelle + reservierte Slots + GE-offen (Zustell-Gate).
 		o.addProperty("dumpMinProfit", dumpMinProfit);
 		o.addProperty("reservedSlots", reservedSlots);
+		o.addProperty("lockedSlots", ignoredSlots.size());
 		o.addProperty("geOpen", geInterfaceOpen);
 		o.addProperty("displayName", client.getLocalPlayer() != null ? client.getLocalPlayer().getName() : null);
 		o.addProperty("isMember", client.getWorldType().contains(WorldType.MEMBERS));
@@ -577,6 +578,16 @@ public class GameStateService
 		JsonArray offers = new JsonArray();
 		for (int slot = 0; slot < GE_SLOTS; slot++)
 		{
+			// Vom Nutzer gesperrte Slots gehen gar nicht erst raus (Nutzerwunsch 01.09.:
+			// eigene Flips nebenher laufen lassen, ohne dass das Plugin dazwischenfunkt).
+			// Damit sie auch nicht als
+			// FREI durchgehen, geht ihre Anzahl als lockedSlots mit — der Server rechnet
+			// freie Slots sonst als "8 minus laufende Orders" und wuerde einen gesperrten
+			// Slot munter verplanen (Fund 01.09.).
+			if (ignoredSlots.contains(slot))
+			{
+				continue;
+			}
 			SlotStateStore.SavedSlot ss = slotStore.get(slot);
 			if (ss == null || "EMPTY".equals(ss.getState()))
 			{

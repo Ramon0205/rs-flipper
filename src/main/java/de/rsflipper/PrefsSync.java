@@ -7,7 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.config.ConfigManager;
 
 /**
- * Praeferenz-Sync ueber Geraete (Phase 3, Ramon 2026-07-20): Zeitfenster, Mindest-
+ * Praeferenz-Sync ueber Geraete (Phase 3, 2026-07-20): Zeitfenster, Mindest-
  * Profit, Blocklist und Dump-Einstellungen wandern ueber /me/preferences mit —
  * der NEUESTE Stand gewinnt (Server-Uhr = einzige Zeit-Wahrheit; PUT liefert den
  * Stempel zurueck, Geraete-Uhren spielen keine Rolle). Die "Sync settings"-Checkbox
