@@ -22,4 +22,6 @@ public class FillEvent
 	 * Handelszeitpunkt lag irgendwann während der Offline-Zeit.
 	 */
 	boolean login;
+	/** Anlage-Zeitpunkt der Order, aus der dieser Fill stammt (0 = unbekannt). */
+	long orderTs;
 }

@@ -31,6 +31,15 @@ public class SlotStateStore
 		long spent;
 		String state;
 		boolean suggestedPriceUsed;
+		/**
+		 * Wann diese Order angelegt wurde (Unix-Millis, 0 = unbekannt).
+		 *
+		 * Grundlage fuer "wie lange hat der Kauf gedauert" im Feed. Aus den Fills
+		 * allein laesst sich das nicht rekonstruieren: Eine Order, die in einem Rutsch
+		 * fuellt, haette dort eine Dauer von null. Aeltere Dateien ohne dieses Feld
+		 * liefern 0 - der Server faellt dann auf die Fill-Spanne zurueck.
+		 */
+		long orderTs;
 	}
 
 	private static final Type FILE_TYPE = new TypeToken<HashMap<Integer, SavedSlot>>() {}.getType();

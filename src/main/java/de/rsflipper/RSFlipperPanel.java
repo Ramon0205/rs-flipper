@@ -57,8 +57,14 @@ public class RSFlipperPanel extends PluginPanel
 
 	private volatile ClientSuggestion current;
 	private final javax.swing.JComboBox<String> activityBox = new javax.swing.JComboBox<>(new String[]{"5 min", "30 min", "2 h", "8 h"});
-	/** Risikostufe (31.08.) — gehoert ins Panel, nicht nur in RuneLites Config-Dialog:
-	 *  alle uebrigen Einstellungen stehen hier, dort sucht der Nutzer sie auch. */
+	/**
+	 * Risikostufe - AUSGEBLENDET seit 09.09.2026.
+	 *
+	 * Die Stufen steuern die Vorschlaege nicht mehr; der Server bedient jeden mit
+	 * derselben Logik. Ein sichtbarer Regler, der nichts bewirkt, ist schlechter
+	 * als keiner. Bauteil und Konfigurationsschluessel bleiben absichtlich stehen,
+	 * damit die Auswahl zurueckkehren kann, wenn die Stufen sich messbar bewaehren.
+	 */
 	private final javax.swing.JComboBox<String> riskBox = new javax.swing.JComboBox<>(
 		new String[]{"Careful", "Balanced", "Aggressive"});
 	private final javax.swing.JTextField minProfitField = new javax.swing.JTextField();
@@ -411,7 +417,7 @@ public class RSFlipperPanel extends PluginPanel
 		quotaRow.add(quotaTimerLabel);
 		quotaRow.setVisible(false);
 		content.add(quotaRow);
-		new javax.swing.Timer(30_000, e -> updateQuotaTimer()).start();
+		starteTimer(30_000, e -> updateQuotaTimer());
 		// Mini-Preisgraph entfernt (2026-07-22): zu wenig ablesbar — der
 		// Chart-Button oeffnet stattdessen den vollen Graph auf der Website.
 		content.add(actionRow);
@@ -511,7 +517,7 @@ public class RSFlipperPanel extends PluginPanel
 
 		// Session-Timer: grün, tickt sekündlich — nur sichtbar bei Betrachtung 'Session'.
 		statSession.setForeground(new Color(46, 204, 113));
-		new javax.swing.Timer(1000, e -> {
+		starteTimer(1000, e -> {
 			if (!"Session".equals(getSelectedPeriodLabel()))
 			{
 				statSession.setText(" ");
@@ -524,17 +530,9 @@ public class RSFlipperPanel extends PluginPanel
 			}
 			long sec = Math.max(0, (System.currentTimeMillis() - sessionStartMs) / 1000);
 			statSession.setText(String.format("%02d:%02d:%02d", sec / 3600, (sec % 3600) / 60, sec % 60));
-		}).start();
+		});
 
 		// ── Einstellungs-Tab (§4.6: eigener Tab statt im Flip-Tab) ──
-		riskBox.setSelectedIndex(config.riskLevel().ordinal());
-		riskBox.setToolTipText("Careful: smaller, more predictable losses at a lower rate. "
-			+ "Balanced: best all-round result. Aggressive: highest rate, occasional big loss.");
-		riskBox.addActionListener(e -> {
-			configManager.setConfiguration(RSFlipperConfig.GROUP, "riskLevel",
-				RSFlipperConfig.RiskLevel.values()[riskBox.getSelectedIndex()]);
-			onToggleChanged.run();
-		});
 		activityBox.setSelectedIndex(config.targetEtf().ordinal());
 		activityBox.setToolTipText("Suggestions aim for this speed, and set how patiently your "
 			+ "offers are managed. Much faster flips are filtered out unless nothing else is available.");
@@ -612,17 +610,11 @@ public class RSFlipperPanel extends PluginPanel
 			l.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 			l.setAlignmentX(LEFT_ALIGNMENT);
 		}
-		for (javax.swing.JComponent c : new javax.swing.JComponent[]{activityBox, passiveBox, riskBox})
+		for (javax.swing.JComponent c : new javax.swing.JComponent[]{activityBox, passiveBox})
 		{
 			c.setAlignmentX(LEFT_ALIGNMENT);
 			c.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 28));
 		}
-		JLabel riskCaption = new JLabel("Risk level:");
-		riskCaption.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		riskCaption.setAlignmentX(LEFT_ALIGNMENT);
-		settingsTab.add(riskCaption);
-		settingsTab.add(riskBox);
-		settingsTab.add(javax.swing.Box.createVerticalStrut(10));
 		settingsTab.add(activityCaption);
 		settingsTab.add(activityBox);
 		settingsTab.add(javax.swing.Box.createVerticalStrut(10));
@@ -745,13 +737,13 @@ public class RSFlipperPanel extends PluginPanel
 		add(tabs, BorderLayout.CENTER); // Liste darf bis zum Fensterende wachsen (2026-07-18)
 
 		// Stats laufend aktuell halten (30 s) — die Profit-Sektion ist jetzt immer sichtbar.
-		new javax.swing.Timer(30_000, e -> {
+		starteTimer(30_000, e -> {
 			Runnable r = statsRefresher;
 			if (r != null)
 			{
 				r.run();
 			}
-		}).start();
+		});
 	}
 
 	void setStatus(String text)
@@ -875,6 +867,36 @@ public class RSFlipperPanel extends PluginPanel
 
 	/** M12a: rot pulsierender Rahmen des Suggestion-Felds bei aktivem Dump-Alert. */
 	private javax.swing.Timer dumpPulseTimer;
+	/**
+	 * Alle dauerhaft laufenden Timer dieses Panels.
+	 *
+	 * Sie wurden frueher nur gestartet und nie gestoppt. Da shutDown() das Panel
+	 * verwirft, lief bei jedem Plugin-Neustart ein weiterer Satz Timer fuer immer
+	 * weiter und griff ins Leere - im Client-Log als NullPointerException aus
+	 * refreshStats() sichtbar, weil das Plugin sein Panel-Feld da schon genullt hat.
+	 * Der Sekundentakt-Timer summierte sich dabei ueber jeden Neustart
+	 * (Fund 09.09.2026 im Client-Log).
+	 */
+	private final java.util.List<javax.swing.Timer> laufendeTimer = new java.util.ArrayList<>();
+
+	/** Alle Timer anhalten - vom Plugin beim Herunterfahren gerufen. */
+	void stoppeTimer()
+	{
+		for (javax.swing.Timer t : laufendeTimer)
+		{
+			t.stop();
+		}
+		laufendeTimer.clear();
+		stopDumpPulse();
+	}
+
+	/** Timer starten UND merken, damit er beim Herunterfahren wieder aufhoert. */
+	private void starteTimer(int ms, java.awt.event.ActionListener aktion)
+	{
+		javax.swing.Timer t = new javax.swing.Timer(ms, aktion);
+		laufendeTimer.add(t);
+		t.start();
+	}
 
 	private void startDumpPulse()
 	{
@@ -1059,6 +1081,42 @@ public class RSFlipperPanel extends PluginPanel
 		});
 	}
 
+	/**
+	 * Zeile im Feed: Abschlusszeitpunkt und die Dauern des Flips (Nutzerwunsch
+	 * 01.09.2026). Gemessen ab Anlage der jeweiligen Order, nicht ab dem ersten
+	 * Teil-Fill. Fuer Flips aus der Zeit davor kennt der Server die Dauern nicht -
+	 * dann bleibt es beim Zeitpunkt allein.
+	 */
+	private static String flipTooltip(com.google.gson.JsonObject o)
+	{
+		StringBuilder sb = new StringBuilder("<html>");
+		if (o.has("closedTs") && !o.get("closedTs").isJsonNull())
+		{
+			sb.append(new java.text.SimpleDateFormat("MMM d, HH:mm", java.util.Locale.ENGLISH)
+				.format(new java.util.Date(o.get("closedTs").getAsLong())));
+		}
+		dauerZeile(sb, o, "buyMs", "Bought in");
+		dauerZeile(sb, o, "sellMs", "Sold in");
+		dauerZeile(sb, o, "totalMs", "Total");
+		return sb.append("</html>").toString();
+	}
+
+	private static void dauerZeile(StringBuilder sb, com.google.gson.JsonObject o, String feld, String titel)
+	{
+		if (!o.has(feld) || o.get(feld).isJsonNull())
+		{
+			return;
+		}
+		long ms = o.get(feld).getAsLong();
+		if (sb.length() > 6)
+		{
+			sb.append("<br>");
+		}
+		// Kein Aufrunden auf 1s: Eine Order kann tatsaechlich sofort gefuellt worden
+		// sein. Fehlt die Messung ganz, liefert der Server null und die Zeile entfaellt.
+		sb.append(titel).append(' ').append(RSFlipperOverlay.formatDuration(ms / 1000));
+	}
+
 	/** Flip-Historie rendern — gefiltert nach dem Suchfeld (Name, case-insensitive). */
 	private void renderItemList()
 	{
@@ -1091,11 +1149,7 @@ public class RSFlipperPanel extends PluginPanel
 				right.setForeground(p >= 0 ? new Color(46, 204, 113) : new Color(231, 76, 60));
 				row.add(left, BorderLayout.CENTER);
 				row.add(right, BorderLayout.EAST);
-				if (o.has("closedTs") && !o.get("closedTs").isJsonNull())
-				{
-					row.setToolTipText(new java.text.SimpleDateFormat("MMM d, HH:mm", java.util.Locale.ENGLISH)
-						.format(new java.util.Date(o.get("closedTs").getAsLong())));
-				}
+				row.setToolTipText(flipTooltip(o));
 				itemListPanel.add(row);
 				alt = !alt;
 			}

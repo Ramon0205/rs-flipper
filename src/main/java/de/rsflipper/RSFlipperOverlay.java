@@ -775,7 +775,7 @@ public class RSFlipperOverlay extends Overlay
 	}
 
 	/** Kompakte Dauer: 45s, 12m, 1h5m. */
-	private static String formatDuration(long sec)
+	static String formatDuration(long sec)
 	{
 		if (sec < 60)
 		{

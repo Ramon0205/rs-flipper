@@ -65,12 +65,17 @@ public interface RSFlipperConfig extends Config
 		}
 	}
 
+	/**
+	 * Risikostufe - AUSGEBLENDET seit 09.09.2026, weil sie die Vorschlaege nicht mehr
+	 * steuert. Schluessel und Enum bleiben stehen: So gehen bestehende Einstellungen
+	 * nicht verloren und die Auswahl kann zurueckkehren, wenn die Stufen sich messbar
+	 * bewaehren.
+	 */
 	@ConfigItem(
 		keyName = "riskLevel",
 		name = "Risk level",
-		description = "Careful: smaller, more predictable losses at a lower rate. "
-			+ "Balanced: best all-round result. Aggressive: highest rate, occasional big loss.",
-		position = 1
+		description = "Currently not used - all users get the same suggestion logic",
+		hidden = true
 	)
 	default RiskLevel riskLevel()
 	{

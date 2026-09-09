@@ -128,7 +128,13 @@ public class RSFlipperPlugin extends Plugin
 		cal.set(java.util.Calendar.SECOND, 0);
 		cal.set(java.util.Calendar.MILLISECOND, 0);
 		long itemsSince;
-		switch (panel.getSelectedPeriodLabel())
+		// Zweiter Riegel: Ein verspaeteter Timer-Takt darf keine Ausnahme werfen.
+		RSFlipperPanel p = panel;
+		if (p == null)
+		{
+			return;
+		}
+		switch (p.getSelectedPeriodLabel())
 		{
 			case "Today": itemsSince = cal.getTimeInMillis(); break;
 			case "Week": itemsSince = now - 7L * 86_400_000; break;
@@ -264,6 +270,12 @@ public class RSFlipperPlugin extends Plugin
 		slotLocks.clearHitBoxes();
 		overlayManager.remove(overlay);
 		clientToolbar.removeNavigation(navButton);
+		// Timer des Panels anhalten, BEVOR die Referenz faellt: Sie laufen sonst
+		// weiter und greifen bei jedem Takt auf ein verworfenes Panel zu.
+		if (panel != null)
+		{
+			panel.stoppeTimer();
+		}
 		panel = null;
 		navButton = null;
 	}
@@ -489,12 +501,32 @@ public class RSFlipperPlugin extends Plugin
 		}
 		com.google.gson.JsonObject a = response.getAsJsonObject("dumpAlert");
 		long ts = a.has("ts") ? a.get("ts").getAsLong() : 0;
+		// Der Server hat den Alert bereits zugestellt - ab hier entscheidet nur noch
+		// der Client. Ohne Protokoll war nicht nachvollziehbar, warum ein Alert im
+		// Discord-Kanal steht, im Plugin aber nie auftauchte (Fund 01.09.2026).
 		if (ts <= lastDumpTs)
 		{
-			return; // derselbe Alert haengt an mehreren Syncs
+			log.debug("Dump-Alert verworfen: schon gesehen (ts={} <= {})", ts, lastDumpTs);
+			return;
 		}
-		if (!gameState.hasEmptySlot() || gameState.hasActiveDump())
+		if (!gameState.hasEmptySlot())
 		{
+			log.info("Dump-Alert verworfen: kein freier GE-Slot");
+			return;
+		}
+		if (gameState.hasActiveDump())
+		{
+			log.info("Dump-Alert verworfen: ein anderer Dump ist noch offen");
+			return;
+		}
+		// Laeuft fuer dieses Item schon eine Order, gibt es keinen Alert - egal ob
+		// Kauf oder Verkauf (Produktregel 01.09.2026). Wer das Item im Slot hat, will
+		// dafuer keinen zweiten Einstieg vorgeschlagen bekommen. Ausdruecklich hier
+		// geprueft statt als Nebenwirkung der Aufraeum-Logik in activeDump().
+		int alertItem = a.has("itemId") ? a.get("itemId").getAsInt() : 0;
+		if (alertItem > 0 && gameState.hasOfferFor(alertItem))
+		{
+			log.info("Dump-Alert verworfen: fuer dieses Item laeuft bereits eine Order");
 			return;
 		}
 		// Menge auf den LIVE-Kapitalstand kappen (Fund 2026-07-19: echter Alert
@@ -507,6 +539,7 @@ public class RSFlipperPlugin extends Plugin
 		long amount = Math.min(a.get("amount").getAsLong(), affordable);
 		if (amount < 1)
 		{
+			log.info("Dump-Alert verworfen: Kapital reicht nicht fuer ein Stueck");
 			return;
 		}
 		long predSell = a.get("predSell").getAsLong();

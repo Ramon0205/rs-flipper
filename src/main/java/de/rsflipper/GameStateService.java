@@ -33,6 +33,7 @@ public class GameStateService
 	private static final int GE_SLOTS = 8;
 
 	private final Client client;
+	private final SlotLocks slotLocks;
 	@Getter
 	private final BuyLimitTracker buyLimits;
 	@Getter
@@ -77,9 +78,10 @@ public class GameStateService
 	private volatile boolean urgent;
 
 	@Inject
-	public GameStateService(Client client, com.google.gson.Gson gson)
+	public GameStateService(Client client, com.google.gson.Gson gson, SlotLocks slotLocks)
 	{
 		this.client = client;
+		this.slotLocks = slotLocks;
 		this.buyLimits = new BuyLimitTracker(gson);
 		this.outbox = new FillOutbox(gson);
 		this.slotStore = new SlotStateStore(gson);
@@ -128,11 +130,15 @@ public class GameStateService
 		}
 
 		SlotStateStore.SavedSlot prev = slotStore.get(slot);
+		// Gleiche Order wie zuvor? Dann Anlage-Zeitpunkt und Vorschlags-Flag uebernehmen,
+		// sonst beginnt hier eine neue Order (Fill-Dauern im Feed, 01.09.2026).
+		boolean gleicheOrder = prev != null && !empty
+			&& prev.getItemId() == offer.getItemId() && prev.getPrice() == offer.getPrice();
 		SlotStateStore.SavedSlot cur = empty ? null : new SlotStateStore.SavedSlot(
 			offer.getItemId(), offer.getPrice(), offer.getTotalQuantity(),
 			offer.getQuantitySold(), offer.getSpent(), state.name(),
-			prev != null && prev.getItemId() == offer.getItemId() && prev.getPrice() == offer.getPrice()
-				? prev.isSuggestedPriceUsed() : slotSuggestedPrice[slot]);
+			gleicheOrder ? prev.isSuggestedPriceUsed() : slotSuggestedPrice[slot],
+			gleicheOrder && prev.getOrderTs() > 0 ? prev.getOrderTs() : now);
 
 		// Duplikat: exakt gleicher Zustand wie persistiert → nichts zu tun.
 		if (cur != null && cur.equals(prev))
@@ -156,7 +162,8 @@ public class GameStateService
 				// Innerhalb des Login-Fensters erkannt = Offline-Fill: Profit ja, Live-Preis nein.
 				boolean isLoginFill = now - loginAt < LOGIN_WINDOW_MS;
 				outbox.add(new FillEvent(java.util.UUID.randomUUID().toString(), now,
-					offer.getItemId(), isBuy ? "buy" : "sell", tradedDelta, avgPrice, isLoginFill));
+					offer.getItemId(), isBuy ? "buy" : "sell", tradedDelta, avgPrice, isLoginFill,
+					cur.getOrderTs()));
 				if (isBuy)
 				{
 					buyLimits.recordBuy(offer.getItemId(), tradedDelta, now);
@@ -187,7 +194,8 @@ public class GameStateService
 			}
 			slotSuggestedPrice[slot] = matched;
 			cur = new SlotStateStore.SavedSlot(cur.getItemId(), cur.getPrice(), cur.getTotalQuantity(),
-				cur.getQuantityTraded(), cur.getSpent(), cur.getState(), slotSuggestedPrice[slot]);
+				cur.getQuantityTraded(), cur.getSpent(), cur.getState(), slotSuggestedPrice[slot],
+				cur.getOrderTs());
 		}
 		else if (empty)
 		{
@@ -346,34 +354,8 @@ public class GameStateService
 		dumpSuggestion = null;
 	}
 
-	private de.rsflipper.model.ClientSuggestion activeDump()
-	{
-		de.rsflipper.model.ClientSuggestion d = dumpSuggestion;
-		if (d == null)
-		{
-			return null;
-		}
-		boolean placed = false;
-		for (net.runelite.api.GrandExchangeOffer o : client.getGrandExchangeOffers() != null
-			? client.getGrandExchangeOffers() : new net.runelite.api.GrandExchangeOffer[0])
-		{
-			if (o != null && o.getItemId() == d.getItemId()
-				&& o.getState() != net.runelite.api.GrandExchangeOfferState.EMPTY)
-			{
-				placed = true;
-				break;
-			}
-		}
-		if (placed || System.currentTimeMillis() - dumpSuggestionTs > DUMP_OVERRIDE_MS)
-		{
-			dumpSuggestion = null;
-			return null;
-		}
-		return d;
-	}
-
-	/** Freier GE-Slot vorhanden? (Dump-Alert-Guard) */
-	public boolean hasEmptySlot()
+	/** Laeuft fuer dieses Item eine Order - Kauf ODER Verkauf? */
+	public boolean hasOfferFor(int itemId)
 	{
 		net.runelite.api.GrandExchangeOffer[] offers = client.getGrandExchangeOffers();
 		if (offers == null)
@@ -382,6 +364,57 @@ public class GameStateService
 		}
 		for (net.runelite.api.GrandExchangeOffer o : offers)
 		{
+			if (o != null && o.getItemId() == itemId
+				&& o.getState() != net.runelite.api.GrandExchangeOfferState.EMPTY)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private de.rsflipper.model.ClientSuggestion activeDump()
+	{
+		de.rsflipper.model.ClientSuggestion d = dumpSuggestion;
+		if (d == null)
+		{
+			return null;
+		}
+		// Jede Order im selben Item raeumt den Vorschlag weg, egal welche Seite
+		// (Produktregel 01.09.2026): Wer das Item schon im Slot hat, soll dafuer
+		// keinen Dump-Kauf vorgeschlagen bekommen.
+		boolean placed = hasOfferFor(d.getItemId());
+		if (placed || System.currentTimeMillis() - dumpSuggestionTs > DUMP_OVERRIDE_MS)
+		{
+			dumpSuggestion = null;
+			return null;
+		}
+		return d;
+	}
+
+	/**
+	 * Freier GE-Slot vorhanden? (Dump-Alert-Guard)
+	 *
+	 * Gesperrte Slots zaehlen NICHT als frei. Vorher meldete diese Pruefung einen
+	 * abgeschlossenen Slot als verfuegbar, waehrend die Engine ihn korrekt aussen
+	 * vor liess - ein Dump-Alert haette dann ausgerechnet fuer den Slot geworben,
+	 * den der Nutzer fuer sich reserviert hat (Fund 01.09.2026).
+	 */
+	public boolean hasEmptySlot()
+	{
+		net.runelite.api.GrandExchangeOffer[] offers = client.getGrandExchangeOffers();
+		if (offers == null)
+		{
+			return false;
+		}
+		java.util.Set<Integer> gesperrt = slotLocks.locked();
+		for (int slot = 0; slot < offers.length; slot++)
+		{
+			if (gesperrt.contains(slot))
+			{
+				continue;
+			}
+			net.runelite.api.GrandExchangeOffer o = offers[slot];
 			if (o == null || o.getState() == net.runelite.api.GrandExchangeOfferState.EMPTY)
 			{
 				return true;
