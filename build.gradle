@@ -13,7 +13,10 @@ repositories {
 	mavenCentral()
 }
 
-def runeLiteVersion = 'latest.release'
+// Pin the API the plugin is built and tested against. RuneLite 1.13 changed
+// GrandExchangeOffer price accessors to long; `latest.release` would allow an
+// untested API change to break an already published client again.
+def runeLiteVersion = '1.13.1'
 def pluginMainClass = 'de.rsflipper.RSFlipperPluginTest'
 
 dependencies {
