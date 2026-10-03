@@ -15,7 +15,7 @@ public class OfferSnapshot
 	int boxId;
 	String state;
 	int itemId;
-	int price;
+	long price;
 	int totalQuantity;
 	int quantityTraded;
 	long spent;

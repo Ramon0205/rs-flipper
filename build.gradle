@@ -13,7 +13,8 @@ repositories {
 	mavenCentral()
 }
 
-def runeLiteVersion = 'latest.release'
+// Keep builds reproducible against the supported RuneLite API.
+def runeLiteVersion = '1.13.1'
 def pluginMainClass = 'de.rsflipper.RSFlipperPluginTest'
 
 dependencies {

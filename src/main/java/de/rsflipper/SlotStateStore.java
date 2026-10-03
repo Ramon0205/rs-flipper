@@ -25,7 +25,7 @@ public class SlotStateStore
 	public static class SavedSlot
 	{
 		int itemId;
-		int price;
+		long price;
 		int totalQuantity;
 		int quantityTraded;
 		long spent;

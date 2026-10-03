@@ -29,7 +29,9 @@ import net.runelite.client.input.KeyListener;
 @Singleton
 public class OfferPrefill implements KeyListener
 {
-	private static final int NUMERIC_INPUT_TYPE = 7;
+	/** RuneLite 1.13 keeps quantity input on 7, but moved GE price input to 30. */
+	private static final int LEGACY_NUMERIC_INPUT_TYPE = 7;
+	private static final int GE_PRICE_INPUT_TYPE = 30;
 	/** GE-Setup-Typ (0 = Kauf, 1 = Verkauf) — RuneLite-Varbit des Offer-Erstellbildschirms. */
 	private static final int VARBIT_SETUP_TYPE = 4397;
 	private static final long QUOTE_TTL_MS = 30_000;
@@ -96,6 +98,14 @@ public class OfferPrefill implements KeyListener
 		pendingValue = v;
 	}
 
+	/** Value for the current numeric dialog only. Overlay rendering uses this
+	 * instead of the tick cache so accepted/edited dialogs cannot show stale UI. */
+	long getCurrentInputValue()
+	{
+		long value = computeValue();
+		return value > 0 ? value : computeManualQuoteValue();
+	}
+
 	/** §4.6 (2026-07-18): Auch bei MANUELLEN Trades den optimalen Preis liefern —
 	 *  sobald ein GE-Setup offen ist, wird die Server-Quote fürs Item geholt (30s-Cache). */
 	private void refreshQuote()
@@ -131,7 +141,7 @@ public class OfferPrefill implements KeyListener
 	/** Menge oder Preis — je nachdem, was die offene Eingabe gerade abfragt. */
 	private long computeValue()
 	{
-		if (client.getVarcIntValue(VarClientInt.INPUT_TYPE) != NUMERIC_INPUT_TYPE)
+		if (!isNumericInputOpen())
 		{
 			return 0;
 		}
@@ -164,7 +174,7 @@ public class OfferPrefill implements KeyListener
 	/** §4.6: Preis für MANUELLE Trades (kein passender Vorschlag) — aus der Server-Quote. */
 	private long computeManualQuoteValue()
 	{
-		if (client.getVarcIntValue(VarClientInt.INPUT_TYPE) != NUMERIC_INPUT_TYPE)
+		if (!isNumericInputOpen())
 		{
 			return 0;
 		}
@@ -180,6 +190,13 @@ public class OfferPrefill implements KeyListener
 		}
 		boolean isSell = client.getVarbitValue(VARBIT_SETUP_TYPE) == 1;
 		return isSell ? quoteSell : quoteBuy;
+	}
+
+	/** Quantity input still uses mode 7; RuneLite 1.13 uses mode 30 for GE prices. */
+	private boolean isNumericInputOpen()
+	{
+		int inputType = client.getVarcIntValue(VarClientInt.INPUT_TYPE);
+		return inputType == LEGACY_NUMERIC_INPUT_TYPE || inputType == GE_PRICE_INPUT_TYPE;
 	}
 
 	/** Waehrend die Markthalle offen ist, darf '+' NIE in den Chat gelangen (
@@ -249,7 +266,7 @@ public class OfferPrefill implements KeyListener
 		// Wert — nichts wird ueberschrieben. Leeres Enter war im Spiel ein No-Op.
 		String inputText = client.getVarcStrValue(VarClientStr.INPUT_TEXT);
 		boolean enterKey = e.getKeyCode() == KeyEvent.VK_ENTER;
-		boolean numericOpen = client.getVarcIntValue(VarClientInt.INPUT_TYPE) == NUMERIC_INPUT_TYPE;
+		boolean numericOpen = isNumericInputOpen();
 		boolean inputEmpty = inputText == null || inputText.trim().isEmpty();
 		// Nur der konfigurierte Hotkey uebernimmt (kein fest verdrahtetes '#').
 		// ENTER fuellt NUR bei offener, leerer Zahleneingabe: getippte Werte bestaetigt Enter normal.

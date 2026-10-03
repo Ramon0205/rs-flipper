@@ -8,6 +8,8 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import javax.inject.Inject;
 import net.runelite.api.Client;
+import net.runelite.api.VarClientInt;
+import net.runelite.api.VarClientStr;
 import net.runelite.api.VarPlayer;
 import net.runelite.api.widgets.ComponentID;
 import net.runelite.api.widgets.Widget;
@@ -34,8 +36,9 @@ public class RSFlipperOverlay extends Overlay
 	private static final int SETUP_QTY_BUTTON = 51;
 	private static final int SETUP_PRICE_BUTTON = 54;
 	private static final int SETUP_CONFIRM_BUTTON = 58;
+	/** RuneLite 1.13 GE setup: displayed price value (not the price button). */
+	private static final int SETUP_PRICE_VALUE = 41;
 	private static final int VARBIT_SETUP_QUANTITY = 4396;
-	private static final int VARBIT_SETUP_PRICE = 4398;
 	/** Einziges zuverlaessiges Setup-Signal (Antler-guard-Fund 2026-07-18): Das
 	 *  Setup-Widget 465/26 gilt AUCH in der Slot-/Offer-Ansicht als sichtbar —
 	 *  nur dieses Varbit (im Setup geoeffneter Slot, 0 = keiner) trennt sauber. */
@@ -150,7 +153,10 @@ public class RSFlipperOverlay extends Overlay
 		// FEST ueber der Chatbox verankert — kein Springen mehr (2026-07-19).
 		int nextY = 40;
 		boolean applyRowDrawn = false;
-		long pending = prefill.getPendingValue();
+		// Do not display an old tick's suggestion after the numeric dialog was
+		// accepted, changed, or closed. A typed draft belongs to the user and must
+		// never be visually advertised as ready to apply.
+		long pending = currentApplyValue();
 		if (pending > 0)
 		{
 			Widget chatbox = client.getWidget(ComponentID.CHATBOX_CONTAINER);
@@ -213,13 +219,14 @@ public class RSFlipperOverlay extends Overlay
 			&& client.getVarbitValue(VARBIT_SETUP_OPEN) != 0)
 		{
 			int curQty = client.getVarbitValue(VARBIT_SETUP_QUANTITY);
-			int curPrice = client.getVarbitValue(VARBIT_SETUP_PRICE);
+			long curPrice = setupPrice(setup);
 			// EINE Regel (2026-07-22, ersetzt die isModify-Sonderbehandlung):
 			// Menge markieren NUR, wenn die Soll-Menge von der bereits im Setup
 			// stehenden abweicht — uebernommene Modify-Mengen leuchten nicht mehr,
 			// gewollte Mengen-Aenderungen schon (und Enter fuellt dann, s. OfferPrefill).
 			boolean qtyOk = curQty == s.getQuantity();
-			boolean priceOk = curPrice == s.getPrice();
+			boolean priceKnown = curPrice > 0;
+			boolean priceOk = priceKnown && curPrice == s.getPrice();
 			if (!qtyOk)
 			{
 				// Verhalten nach §16a-Analyse (eigene Implementierung): Beim SELL
@@ -229,11 +236,14 @@ public class RSFlipperOverlay extends Overlay
 					&& inventoryCount(s.getItemId()) == s.getQuantity();
 				highlightChildMaybePulse(g, setup, sellAll ? SETUP_QTY_ALL_BUTTON : SETUP_QTY_BUTTON, dump ? DUMP_PINK : ORANGE, dump);
 			}
-			if (!priceOk)
+			// An unreadable price is not evidence of a mismatch. Keep the quantity
+			// guidance, but never draw a misleading price warning or confirmation.
+			if (priceKnown && !priceOk)
 			{
 				highlightChildMaybePulse(g, setup, SETUP_PRICE_BUTTON, dump ? DUMP_PINK : ORANGE, dump);
 			}
-			if (qtyOk && priceOk)
+			// Only accepted values can be confirmed; an open dialog may contain a different draft.
+			if (qtyOk && priceOk && client.getVarcIntValue(VarClientInt.INPUT_TYPE) == 0)
 			{
 				highlightChildMaybePulse(g, setup, SETUP_CONFIRM_BUTTON, dump ? DUMP_PINK : GREEN, dump);
 			}
@@ -296,6 +306,54 @@ public class RSFlipperOverlay extends Overlay
 			}
 		}
 		return null;
+	}
+
+	/** RuneLite 1.13 removed GE varbit 4398. The actual setup-price text lives
+	 * at the documented setup child 41; do not search neighbouring widgets, where
+	 * unrelated numbers may otherwise be mistaken for a price. */
+	private long setupPrice(Widget setup)
+	{
+		return setup == null ? -1 : parseSetupPriceText(textOf(setup.getChild(SETUP_PRICE_VALUE)));
+	}
+
+	static long parseSetupPriceText(String text)
+	{
+		if (text == null)
+		{
+			return -1;
+		}
+		String visible = text.replaceAll("<[^>]*>", "").trim();
+		java.util.regex.Matcher matcher = java.util.regex.Pattern
+			.compile("^([1-9][0-9]*|[1-9][0-9]{0,2}(?:,[0-9]{3})+) coins$")
+			.matcher(visible);
+		if (!matcher.matches())
+		{
+			return -1;
+		}
+		try
+		{
+			return Long.parseLong(matcher.group(1).replace(",", ""));
+		}
+		catch (NumberFormatException ignored)
+		{
+			return -1;
+		}
+	}
+
+	private String textOf(Widget widget)
+	{
+		return widget == null ? null : widget.getText();
+	}
+
+	private long currentApplyValue()
+	{
+		int inputType = client.getVarcIntValue(VarClientInt.INPUT_TYPE);
+		if (inputType != 7 && inputType != 30)
+		{
+			return 0;
+		}
+		String draft = client.getVarcStrValue(VarClientStr.INPUT_TEXT);
+		return draft == null || draft.trim().isEmpty() ? prefill.getCurrentInputValue() : 0;
 	}
 
 	/** Apply-Zeile bei offener Zahleneingabe (2026-07-19): exakt der Look der
